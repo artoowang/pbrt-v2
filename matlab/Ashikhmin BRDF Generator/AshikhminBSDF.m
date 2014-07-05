@@ -9,6 +9,7 @@ function bsdfVal = AshikhminBSDF(wi, wr, densityFunction, f0)
     end
     h = h / hLen;
     k_dot_h = wi' * h;
+    % TODO: use gUsingGrid
     bsdfVal = densityFunction(h) * AshikhminAverageNH(densityFunction) ...
         * Fresnel(k_dot_h, f0) ...
         / (4 * Ashikhmin_g(wi, densityFunction) * Ashikhmin_g(wr, densityFunction));
