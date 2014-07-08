@@ -6,6 +6,7 @@ function gGrid = Ashikhmin_gGrid(densityFunction, nTheta, nPhi)
     thetas = linspace(0, pi/2, nTheta);
     phis = linspace(0, 2*pi, nPhi);
     gGrid.vals = zeros(nTheta, nPhi);
+    gGrid.densityFunction = densityFunction;
     
     [gGrid.phis, gGrid.thetas] = meshgrid(phis, thetas);
     N = numel(gGrid.thetas);
