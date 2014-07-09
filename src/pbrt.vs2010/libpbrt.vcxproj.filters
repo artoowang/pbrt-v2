@@ -909,6 +909,12 @@
     <ClInclude Include="..\3rdparty\tiff-3.9.4\tif_config.h">
       <Filter>Header Files\3rdparty\tiff-3.9.4</Filter>
     </ClInclude>
+    <ClInclude Include="..\core\targa.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\materials\ashikhmin.h">
+      <Filter>Header Files\materials</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\3rdparty\ilmbase-1.0.2\half.cpp">
@@ -1672,6 +1678,15 @@
     </ClCompile>
     <ClCompile Include="..\3rdparty\tiff-3.9.4\mkg3states.c">
       <Filter>Source Files\3rdparty\tiff-3.9.4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\StdAfx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\core\targa.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\materials\ashikhmin.cpp">
+      <Filter>Source Files\materials</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

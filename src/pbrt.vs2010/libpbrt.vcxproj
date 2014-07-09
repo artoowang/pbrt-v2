@@ -233,6 +233,7 @@
     <ClInclude Include="..\lights\point.h" />
     <ClInclude Include="..\lights\projection.h" />
     <ClInclude Include="..\lights\spot.h" />
+    <ClInclude Include="..\materials\ashikhmin.h" />
     <ClInclude Include="..\materials\glass.h" />
     <ClInclude Include="..\materials\kdsubsurface.h" />
     <ClInclude Include="..\materials\matte.h" />
@@ -1194,6 +1195,7 @@
     <ClCompile Include="..\lights\point.cpp" />
     <ClCompile Include="..\lights\projection.cpp" />
     <ClCompile Include="..\lights\spot.cpp" />
+    <ClCompile Include="..\materials\ashikhmin.cpp" />
     <ClCompile Include="..\materials\glass.cpp" />
     <ClCompile Include="..\materials\kdsubsurface.cpp" />
     <ClCompile Include="..\materials\matte.cpp" />

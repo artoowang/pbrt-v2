@@ -504,6 +504,24 @@ private:
 };
 
 
+class Ashikhmin : public BxDF {
+public:
+    Ashikhmin(const Spectrum &reflectance, Fresnel *f,
+        MicrofacetDistribution *d);
+    Spectrum f(const Vector &wo, const Vector &wi) const;
+    Spectrum Sample_f(const Vector &wo, Vector *wi,
+                              float u1, float u2, float *pdf) const;
+    float Pdf(const Vector &wo, const Vector &wi) const;
+
+private:
+    float G(const Vector &wo, const Vector &wi, const Vector &wh) const;
+
+    Spectrum R;
+    MicrofacetDistribution *distribution;
+    Fresnel *fresnel;
+};
+
+
 
 // BSSRDF Declarations
 class BSSRDF {

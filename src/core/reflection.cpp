@@ -497,6 +497,53 @@ Spectrum BxDF::rho(int nSamples, const float *samples1,
 }
 
 
+Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
+                       MicrofacetDistribution *d)
+    : BxDF(BxDFType(BSDF_REFLECTION | BSDF_GLOSSY)),
+     R(reflectance), distribution(d), fresnel(f)
+{
+}
+
+
+Spectrum
+Ashikhmin::f(const Vector &wo, const Vector &wi) const
+{
+    Vector wh = wi + wo;
+    if (wh.x == 0. && wh.y == 0. && wh.z == 0.) {
+        return Spectrum(0.f);
+    }
+    wh = Normalize(wh);
+    float i_dot_h = Dot(wi, wh);
+    Spectrum F = fresnel->Evaluate(i_dot_h);
+    float avgNH = 1.f;  // TODO
+    float g_wi = 1.f, g_wo = 1.f;   // TODO
+    // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
+    return R * distribution->D(wh) * avgNH * F /
+               (4.f * g_wi * g_wo);
+}
+
+
+Spectrum
+Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
+                              float u1, float u2, float *pdf) const 
+{
+    distribution->Sample_f(wo, wi, u1, u2, pdf);
+    if (!SameHemisphere(wo, *wi)) {
+        return Spectrum(0.f);
+    }
+    return f(wo, *wi);
+}
+
+
+float
+Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const 
+{
+    if (!SameHemisphere(wo, wi)) {
+        return 0.f;
+    }
+    return distribution->Pdf(wo, wi);
+}
+
 
 // BSDF Method Definitions
 BSDFSampleOffsets::BSDFSampleOffsets(int count, Sample *sample) {
