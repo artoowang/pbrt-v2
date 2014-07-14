@@ -17,13 +17,13 @@ Export('has_dtrace')
 #has_gcd = float(platform.mac_ver()[0][:4] >= 10.6)
 has_gcd = False
 
-build_64bit = True
+build_64bit = False
 
 parallel_libs = [ 'pthread' ]
 Export('parallel_libs')
     
-tiff_libs = [ ]
-# tiff_libs = [ 'tiff' ]
+#tiff_libs = [ ]
+tiff_libs = [ 'tiff' ]
 tiff_includes = [ ]
 tiff_libdir = [ ]
 Export('tiff_libs')

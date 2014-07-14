@@ -37,9 +37,6 @@
 #include "paramset.h"
 #include "texture.h"
 
-// TODO: test
-#include "boost/numeric/odeint.hpp"
-
 // PlasticMaterial Method Definitions
 BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
                                  const DifferentialGeometry &dgShading,
@@ -62,26 +59,9 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
     return bsdf;
 }
 
-// TODO: test
-typedef std::vector< double > state_type;
-using namespace boost::numeric::odeint;
-
-void harmonic_oscillator( const state_type &x , state_type &dxdt , const double t)
-{
-    dxdt[0] = t*t*t;
-}
-
 AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
         const TextureParams &mp)
 {
-    // TODO: test integration
-    state_type x(1);
-    x[0] = 0;
-    size_t steps = integrate(harmonic_oscillator ,
-        x , 3.0 , 5.0 , 0.1);
-
-    printf("Integration result: %d %f\n", steps, x[0]);
-
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
     Reference<Texture<float> > bumpMap = mp.GetFloatTextureOrNull("bumpmap");
