@@ -5,6 +5,13 @@ PBRT_FILE="${NAME}.pbrt"
 EXR_FILE="killeroo-gold.exr"
 OUTPUT_DIR="${NAME}"
 
+DISPLAY_CMD="i_view32"
+
+# Determine if display command is available
+if ! which "$DISPLAY_CMD"; then
+    DISPLAY_CMD="eog"
+fi
+
 mkdir -p "${OUTPUT_DIR}"
 
 # Search for unused sequence number
@@ -24,5 +31,5 @@ echo >&2 "Write to ${OUTPUT_DIR}/${TIF_FILE}"
 
 pbrt "$PBRT_FILE"
 exrtotiff "$EXR_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
-i_view32 "${OUTPUT_DIR}/${TIF_FILE}"
+"$DISPLAY_CMD" "${OUTPUT_DIR}/${TIF_FILE}"
 
