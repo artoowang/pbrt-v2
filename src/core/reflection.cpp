@@ -38,6 +38,9 @@
 #include "montecarlo.h"
 #include <stdarg.h>
 
+// For numerical integration
+#include "cuba.h"
+
 // BxDF Local Definitions
 struct IrregIsoProc {
     // IrregIsoProc Public Methods
@@ -536,7 +539,6 @@ Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
 {
 }
 
-
 Spectrum
 Ashikhmin::f(const Vector &wo, const Vector &wi) const
 {
@@ -554,7 +556,6 @@ Ashikhmin::f(const Vector &wo, const Vector &wi) const
                (4.f * g_wi * g_wo);
 }
 
-
 Spectrum
 Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const 
@@ -566,7 +567,6 @@ Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
     return f(wo, *wi);
 }
 
-
 float
 Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const 
 {
@@ -574,6 +574,120 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
         return 0.f;
     }
     return distribution->Pdf(wo, wi);
+}
+
+// TODO: test
+int
+integrand2(const int *ndim, const double xx[],
+    		const int *ncomp, double ff[], void *userdata)
+{
+	float phi = xx[0] * 2*M_PI,
+		  theta = xx[1] * M_PI;
+
+	float costheta, sintheta;
+	sincosf(theta, &sintheta, &costheta);
+
+	ff[0] = costheta * sintheta;
+	ff[0] *= M_PI * (2*M_PI);
+
+	return 0;
+}
+
+int
+integrand3(const int *ndim, const double xx[],
+		const int *ncomp, double ff[], void *userdata)
+{
+	float theta = xx[0];
+
+	float costheta, sintheta;
+	sincosf(theta, &sintheta, &costheta);
+	ff[0] = costheta * sintheta;
+	return 0;
+}
+
+float
+Ashikhmin::averageNH(void) const
+{
+	int nregions, neval, fail;
+	double integral[1], error[1], prob[1];
+	Cuhre(1, 1, integrand3, NULL, 1,
+		    1e-3, 1e-12, 0,
+		    0, 50000, 0,
+		    NULL,
+		    &nregions, &neval, &fail, integral, error, prob);
+
+	// TODO: test
+	printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
+				nregions, neval, fail);
+	printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
+				integral[0], error[0], prob[0]);
+
+	return integral[0];
+}
+
+int
+Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
+    		const int *ncomp, double ff[], void *userdata)
+{
+	const MicrofacetDistribution *distribution =
+			reinterpret_cast<const MicrofacetDistribution*>(userdata);
+	float phi = xx[0] * 2*M_PI,
+		  theta = xx[1] * M_PI;
+
+	float costheta, sintheta;
+	sincosf(theta, &sintheta, &costheta);
+
+	Vector H = SphericalDirection(sintheta, costheta, phi);
+	float NdotH = costheta;
+
+	ff[0] = NdotH * distribution->D(H) * sintheta;
+	ff[0] *= M_PI * (2*M_PI);
+
+	return 0;
+}
+
+void
+Ashikhmin::testSphVectorTransform(void)
+{
+	const int thetaRes = 1000, phiRes = 1000;
+	float maxErrTheta = 0.f, maxErrPhi = 0.f;
+
+	// The transform at boundary (theta = 0 or pi, phi = 0 or 2*pi) is not guaranteed to return the same value,
+	// so they are skipped. Test result on 07/15/2014 is "maxErrTheta = 4.053116e-06, maxErrPhi = 4.768372e-07"
+	for (int ti = 1; ti < thetaRes; ++ti) {
+		float theta = M_PI * ti / thetaRes,
+			  sintheta, costheta;
+		sincosf(theta, &sintheta, &costheta);
+		for (int pi = 1; pi < phiRes; ++pi) {
+			float phi = 2 * M_PI * pi / phiRes;
+			Vector v = SphericalDirection(sintheta, costheta, phi);
+
+			float errTheta = fabsf(SphericalTheta(v) - theta),
+				  errPhi = fabsf(SphericalPhi(v) - phi);
+			if (errTheta > maxErrTheta) {
+				maxErrTheta = errTheta;
+			}
+			if (errPhi > maxErrPhi) {
+				maxErrPhi = errPhi;
+			}
+		}
+	}
+
+	printf("Ashikhmin::testSphVectorTransform():\n"
+		   "  maxErrTheta = %e, maxErrPhi = %e\n", maxErrTheta, maxErrPhi);
+}
+
+void
+Ashikhmin::testAverageNH(void)
+{
+	const float rough = 100.f;
+
+	BlinnForAshikhmin *distribution = new BlinnForAshikhmin(1.f / rough);
+	FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);	// This is not actually used
+	Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
+	float avgNH = ashikhmin->averageNH();
+
+	printf("Average dot(N,H) for roughness %.2f is %f\n", rough, avgNH);
 }
 
 

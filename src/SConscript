@@ -3,7 +3,7 @@
 import sys
 arch = sys.platform
 
-Import('env', 'has_dtrace', 'parallel_libs', 'exr_libs', 'tiff_libs')
+Import('env', 'has_dtrace', 'parallel_libs', 'exr_libs', 'tiff_libs', 'env_libs')
 
 if has_dtrace == True:
     env.DTrace('core/dtrace.h', 'core/dtrace.d')
@@ -90,7 +90,6 @@ lib_src = [ core_src + accelerators_src + cameras_src + film_src + filters_src +
 output = { }
 output['pbrt_lib'] = env.StaticLibrary('libpbrt', lib_src)
 
-env_libs = [ ]
 output['pbrt'] = env.Program('pbrt', renderer_src + output['pbrt_lib'],
                              LIBS = env_libs + exr_libs + parallel_libs)
 if arch == 'win32':

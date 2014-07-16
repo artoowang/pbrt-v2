@@ -3,6 +3,8 @@
 import sys, platform
 arch = sys.platform
 
+import os
+
 ######################################################################
 # user-configurable section
 
@@ -22,11 +24,15 @@ build_64bit = False
 parallel_libs = [ 'pthread' ]
 Export('parallel_libs')
     
-#tiff_libs = [ ]
 tiff_libs = [ 'tiff' ]
 tiff_includes = [ ]
 tiff_libdir = [ ]
 Export('tiff_libs')
+
+env_libs = [ 'cuba' ]
+env_includes = [ os.environ['HOME'] + '/include' ]
+env_libdir = [ os.environ['HOME'] + '/lib' ]
+Export('env_libs')
 
 ######################################################################
 ## Configure generic environment
@@ -48,8 +54,8 @@ def setup_nice_print(env):
         env['ARCOMSTR'] = "Linking $TARGET"
 
 env = Environment(CCFLAGS = [ '-Wall', '-g' ],
-                  CPPPATH = [ '#core', '#', '.' ] + tiff_includes,
-                  LIBPATH = tiff_libdir,
+                  CPPPATH = [ '#core', '#', '.' ] + tiff_includes + env_includes,
+                  LIBPATH = tiff_libdir + env_libdir,
                   YACCFLAGS = [ '-d', '-v', '-t' ],
                   YACCHXXFILESUFFIX = '.hpp',
                   ENV = { 'PATH' : [ '/usr/local/bin', '/usr/bin', '/bin', 

@@ -532,8 +532,15 @@ public:
                               float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
 
+    // For tests
+    static void testSphVectorTransform(void);
+    static void testAverageNH(void);
+
 private:
-    float G(const Vector &wo, const Vector &wi, const Vector &wh) const;
+    float averageNH(void) const;
+
+    static int averageNHIntegrand(const int *ndim, const double xx[],
+    		const int *ncomp, double ff[], void *userdata);
 
     Spectrum R;
     MicrofacetDistribution *distribution;
