@@ -444,7 +444,8 @@ public:
     BlinnForAshikhmin(float e) { if (e > 10000.f || isnan(e)) e = 10000.f;
                      exponent = e; }
     float D(const Vector &wh) const {
-        float costhetah = AbsCosTheta(wh);
+    	// Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
+        float costhetah = max(CosTheta(wh), 0.f);
         return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
     }
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;

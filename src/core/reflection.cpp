@@ -576,41 +576,12 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
     return distribution->Pdf(wo, wi);
 }
 
-// TODO: test
-int
-integrand2(const int *ndim, const double xx[],
-    		const int *ncomp, double ff[], void *userdata)
-{
-	float phi = xx[0] * 2*M_PI,
-		  theta = xx[1] * M_PI;
-
-	float costheta, sintheta;
-	sincosf(theta, &sintheta, &costheta);
-
-	ff[0] = costheta * sintheta;
-	ff[0] *= M_PI * (2*M_PI);
-
-	return 0;
-}
-
-int
-integrand3(const int *ndim, const double xx[],
-		const int *ncomp, double ff[], void *userdata)
-{
-	float theta = xx[0];
-
-	float costheta, sintheta;
-	sincosf(theta, &sintheta, &costheta);
-	ff[0] = costheta * sintheta;
-	return 0;
-}
-
 float
 Ashikhmin::averageNH(void) const
 {
 	int nregions, neval, fail;
 	double integral[1], error[1], prob[1];
-	Cuhre(1, 1, integrand3, NULL, 1,
+	Cuhre(2, 1, averageNHIntegrand, (void*)distribution, 1,
 		    1e-3, 1e-12, 0,
 		    0, 50000, 0,
 		    NULL,
@@ -630,7 +601,7 @@ Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
     		const int *ncomp, double ff[], void *userdata)
 {
 	const MicrofacetDistribution *distribution =
-			reinterpret_cast<const MicrofacetDistribution*>(userdata);
+				reinterpret_cast<const MicrofacetDistribution*>(userdata);
 	float phi = xx[0] * 2*M_PI,
 		  theta = xx[1] * M_PI;
 
@@ -680,14 +651,14 @@ Ashikhmin::testSphVectorTransform(void)
 void
 Ashikhmin::testAverageNH(void)
 {
-	const float rough = 100.f;
+	const float BlinnExponent = 100.f;
 
-	BlinnForAshikhmin *distribution = new BlinnForAshikhmin(1.f / rough);
+	BlinnForAshikhmin *distribution = new BlinnForAshikhmin(BlinnExponent);
 	FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);	// This is not actually used
 	Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
 	float avgNH = ashikhmin->averageNH();
 
-	printf("Average dot(N,H) for roughness %.2f is %f\n", rough, avgNH);
+	printf("Average dot(N,H) for Blinn exponent %.2f is %f\n", BlinnExponent, avgNH);
 }
 
 
