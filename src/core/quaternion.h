@@ -87,6 +87,19 @@ struct Quaternion {
     Transform ToTransform() const;
     Quaternion(const Transform &t);
 
+    Quaternion(const Vector &axis, float angle)
+    {
+    	setAxisAngle(axis, angle);
+    }
+    Quaternion(const Vector &uFrom, const Vector &uTo)
+    {
+    	rotationTo(uFrom, uTo);
+    }
+
+    void setAxisAngle(const Vector &axis, float angle);
+    // Create quaternion for the shortest rotation from uFrom to uTo
+    void rotationTo(const Vector &uFrom, const Vector &uTo);
+
     // Quaternion Public Data
     Vector v;
     float w;

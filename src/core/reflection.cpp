@@ -596,6 +596,13 @@ Ashikhmin::averageNH(void) const
 	return integral[0];
 }
 
+float
+Ashikhmin::gFactor(const Vector &v) const
+{
+	// TODO
+	return 0;
+}
+
 int
 Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
     		const int *ncomp, double ff[], void *userdata)

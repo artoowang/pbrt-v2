@@ -91,6 +91,50 @@ Quaternion::Quaternion(const Transform &t) {
     }
 }
 
+// Code is from http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/
+void
+Quaternion::setAxisAngle(const Vector &axis, float angle)
+{
+	float sinha = 0.f, cosha = 0.f;
+	sincosf(angle * 0.5f, &sinha, &cosha);
+	v = axis * sinha;
+	w = cosha;
+}
+
+// Compute the shortest rotation from uFrom to uTo
+// Both uFrom and uTo are assumed to be unit-length
+// The code is from http://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
+// and https://github.com/toji/gl-matrix/blob/f0583ef53e94bc7e78b78c8a24f09ed5e2f7a20c/src/gl-matrix/quat.js#L54
+void
+Quaternion::rotationTo(const Vector &uFrom, const Vector &uTo)
+{
+	float dot = Dot(uFrom, uTo);
+	if (dot < -0.999999) {
+		// uFrom and uTo are (almost) opposite direction - any rotation axis will do
+		Vector axis;
+		axis = Cross(Vector(1.f, 0.f, 0.f), uFrom);
+		if (axis.LengthSquared() < 1e-6) {
+			axis = Cross(Vector(0.f, 1.f, 0.f), uFrom);
+		}
+		axis = Normalize(axis);
+		setAxisAngle(axis, M_PI);
+	} else if (dot > 0.999999) {
+		// No rotation needed
+		v.x = 0.f;
+		v.y = 0.f;
+		v.z = 0.f;
+		w = 1.f;
+	} else {
+		v = Cross(uFrom, uTo);
+		w = 1 + dot;
+		// Normalize
+		// Since dot > -1, w > 0, so f > 0 - no need to worry about divide-by-zero
+		float f = v.LengthSquared() + w * w;
+		v /= f;
+		w /= f;
+	}
+}
+
 
 Quaternion Slerp(float t, const Quaternion &q1,
                  const Quaternion &q2) {
