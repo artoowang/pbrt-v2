@@ -63,33 +63,33 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
 
 int
 integrand(const int *ndim, const double xx[],
-		const int *ncomp, double ff[], void *userdata)
+        const int *ncomp, double ff[], void *userdata)
 {
-	ff[0] = sin(xx[0])*cos(xx[1])*exp(xx[2]);
-	return 0;
+    ff[0] = sin(xx[0])*cos(xx[1])*exp(xx[2]);
+    return 0;
 }
 
 AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
         const TextureParams &mp)
 {
-	// TODO: test Cuba
-	int nregions, neval, fail;
-	double integral[1], error[1], prob[1];
+    // TODO: test Cuba
+    int nregions, neval, fail;
+    double integral[1], error[1], prob[1];
 
-	/*Cuhre(3, 1, integrand, NULL, 1,
-	    1e-3, 1e-12, 0,
-	    0, 50000, 0,
-	    NULL,
-	    &nregions, &neval, &fail, integral, error, prob);
-	printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
-			nregions, neval, fail);
-	printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
-			integral[0], error[0], prob[0]);*/
+    /*Cuhre(3, 1, integrand, NULL, 1,
+        1e-3, 1e-12, 0,
+        0, 50000, 0,
+        NULL,
+        &nregions, &neval, &fail, integral, error, prob);
+    printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
+            nregions, neval, fail);
+    printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
+            integral[0], error[0], prob[0]);*/
 
-	// TODO: tests
-	Ashikhmin::testSphVectorTransform();
-	Ashikhmin::testAverageNH();
-	Quaternion::unitTest();
+    // TODO: tests
+    Ashikhmin::testSphVectorTransform();
+    Ashikhmin::testAverageNH();
+    Quaternion::unitTest();
 
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);

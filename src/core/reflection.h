@@ -538,7 +538,7 @@ private:
     float gFactor(const Vector &v) const;
 
     static int averageNHIntegrand(const int *ndim, const double xx[],
-    		const int *ncomp, double ff[], void *userdata);
+            const int *ncomp, double ff[], void *userdata);
 
     Spectrum R;
     MicrofacetDistribution *distribution;

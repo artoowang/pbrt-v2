@@ -89,11 +89,11 @@ struct Quaternion {
 
     Quaternion(const Vector &axis, float angle)
     {
-    	setAxisAngle(axis, angle);
+        setAxisAngle(axis, angle);
     }
     Quaternion(const Vector &uFrom, const Vector &uTo)
     {
-    	rotationTo(uFrom, uTo);
+        rotationTo(uFrom, uTo);
     }
 
     void setAxisAngle(const Vector &axis, float angle);

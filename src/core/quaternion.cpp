@@ -95,10 +95,10 @@ Quaternion::Quaternion(const Transform &t) {
 void
 Quaternion::setAxisAngle(const Vector &axis, float angle)
 {
-	float sinha = 0.f, cosha = 0.f;
-	sincosf(angle * 0.5f, &sinha, &cosha);
-	v = axis * sinha;
-	w = cosha;
+    float sinha = 0.f, cosha = 0.f;
+    sincosf(angle * 0.5f, &sinha, &cosha);
+    v = axis * sinha;
+    w = cosha;
 }
 
 // Compute the shortest rotation from uFrom to uTo
@@ -108,31 +108,31 @@ Quaternion::setAxisAngle(const Vector &axis, float angle)
 void
 Quaternion::rotationTo(const Vector &uFrom, const Vector &uTo)
 {
-	float dot = Dot(uFrom, uTo);
-	if (dot < -0.999999) {
-		// uFrom and uTo are (almost) opposite direction - any rotation axis will do
-		Vector axis;
-		axis = Cross(Vector(1.f, 0.f, 0.f), uFrom);
-		if (axis.LengthSquared() < 1e-6) {
-			axis = Cross(Vector(0.f, 1.f, 0.f), uFrom);
-		}
-		axis = Normalize(axis);
-		setAxisAngle(axis, M_PI);
-	} else if (dot > 0.999999) {
-		// No rotation needed
-		v.x = 0.f;
-		v.y = 0.f;
-		v.z = 0.f;
-		w = 1.f;
-	} else {
-		v = Cross(uFrom, uTo);
-		w = 1 + dot;
-		// Normalize
-		// Since dot > -1, w > 0, so f > 0 - no need to worry about divide-by-zero
-		float f = sqrtf(v.LengthSquared() + w * w);
-		v /= f;
-		w /= f;
-	}
+    float dot = Dot(uFrom, uTo);
+    if (dot < -0.999999) {
+        // uFrom and uTo are (almost) opposite direction - any rotation axis will do
+        Vector axis;
+        axis = Cross(Vector(1.f, 0.f, 0.f), uFrom);
+        if (axis.LengthSquared() < 1e-6) {
+            axis = Cross(Vector(0.f, 1.f, 0.f), uFrom);
+        }
+        axis = Normalize(axis);
+        setAxisAngle(axis, M_PI);
+    } else if (dot > 0.999999) {
+        // No rotation needed
+        v.x = 0.f;
+        v.y = 0.f;
+        v.z = 0.f;
+        w = 1.f;
+    } else {
+        v = Cross(uFrom, uTo);
+        w = 1 + dot;
+        // Normalize
+        // Since dot > -1, w > 0, so f > 0 - no need to worry about divide-by-zero
+        float f = sqrtf(v.LengthSquared() + w * w);
+        v /= f;
+        w /= f;
+    }
 }
 
 
@@ -153,30 +153,30 @@ Quaternion Slerp(float t, const Quaternion &q1,
 void
 Quaternion::unitTest(void)
 {
-	const int thetaRes = 1000, phiRes = 1000;
-	Vector uFrom(0.f, 1.f, 0.f);
-	float maxErr = 0.f;
+    const int thetaRes = 1000, phiRes = 1000;
+    Vector uFrom(0.f, 1.f, 0.f);
+    float maxErr = 0.f;
 
-	uFrom = Normalize(uFrom);
+    uFrom = Normalize(uFrom);
 
-	for (int ti = 0; ti <= thetaRes; ++ti) {
-		float theta = M_PI * ti / thetaRes,
-			  sintheta, costheta;
-		sincosf(theta, &sintheta, &costheta);
-		for (int pi = 0; pi <= phiRes; ++pi) {
-			float phi = 2 * M_PI * pi / phiRes;
-			Vector uTo = SphericalDirection(sintheta, costheta, phi);
+    for (int ti = 0; ti <= thetaRes; ++ti) {
+        float theta = M_PI * ti / thetaRes,
+              sintheta, costheta;
+        sincosf(theta, &sintheta, &costheta);
+        for (int pi = 0; pi <= phiRes; ++pi) {
+            float phi = 2 * M_PI * pi / phiRes;
+            Vector uTo = SphericalDirection(sintheta, costheta, phi);
 
-			Quaternion q(uFrom, uTo);
-			Transform t = q.ToTransform();
-			Vector uTo2 = t(uFrom);
-			float err = (uTo - uTo2).Length();
-			if (err > maxErr) {
-				maxErr = err;
-			}
-		}
-	}
+            Quaternion q(uFrom, uTo);
+            Transform t = q.ToTransform();
+            Vector uTo2 = t(uFrom);
+            float err = (uTo - uTo2).Length();
+            if (err > maxErr) {
+                maxErr = err;
+            }
+        }
+    }
 
-	printf("Quaternion::unitTest():\n"
-		   "  maxErr = %e\n", maxErr);
+    printf("Quaternion::unitTest():\n"
+           "  maxErr = %e\n", maxErr);
 }

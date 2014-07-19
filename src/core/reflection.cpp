@@ -502,9 +502,9 @@ Spectrum BxDF::rho(int nSamples, const float *samples1,
 float
 BlinnForAshikhmin::D(const Vector &wh) const
 {
-	// Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
-	float costhetah = max(CosTheta(wh), 0.f);	// TODO: Interesting, this breaks PBRT. Why?
-	return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
+    // Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
+    float costhetah = max(CosTheta(wh), 0.f);    // TODO: Interesting, this breaks PBRT. Why?
+    return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
 }
 
 // Currently BlinnForAshikhmin::Sample_f() and Pdf() is the same as Blinn
@@ -550,20 +550,20 @@ Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
 Spectrum
 Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
 {
-	// In PBRT's implementation, woInput and wiInput is not guaranteed to be at the same side of the shading normal
-	// My implementation of BlinnForAshikhmin::D() has domain for the whole sphere, and it's centered at
-	// the local normal (0, 0, 1). Therefore, we need to inverse them if they are on the other side.
-	// (They should also be at the same side since this lobe is defined as BSDF_REFLECTION.)
+    // In PBRT's implementation, woInput and wiInput is not guaranteed to be at the same side of the shading normal
+    // My implementation of BlinnForAshikhmin::D() has domain for the whole sphere, and it's centered at
+    // the local normal (0, 0, 1). Therefore, we need to inverse them if they are on the other side.
+    // (They should also be at the same side since this lobe is defined as BSDF_REFLECTION.)
 
-	Vector wo = woInput, wi = wiInput;
-	Assert(SameHemisphere(wo, wi));
-	if (wo.z < 0.f) {
-		// Reverse side
-		wo = -wo;
-		wi = -wi;
-	}
+    Vector wo = woInput, wi = wiInput;
+    Assert(SameHemisphere(wo, wi));
+    if (wo.z < 0.f) {
+        // Reverse side
+        wo = -wo;
+        wi = -wi;
+    }
 
-    Vector wh = wi + wo;	// Now wh is guaranteed to be at the same side as the local shading normal (0, 0, 1)
+    Vector wh = wi + wo;    // Now wh is guaranteed to be at the same side as the local shading normal (0, 0, 1)
     if (wh.x == 0. && wh.y == 0. && wh.z == 0.) {
         return Spectrum(0.f);
     }
@@ -600,93 +600,93 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
 float
 Ashikhmin::averageNH(void) const
 {
-	int nregions, neval, fail;
-	double integral[1], error[1], prob[1];
-	Cuhre(2, 1, averageNHIntegrand, (void*)distribution, 1,
-		    1e-3, 1e-12, 0,
-		    0, 50000, 0,
-		    NULL,
-		    &nregions, &neval, &fail, integral, error, prob);
+    int nregions, neval, fail;
+    double integral[1], error[1], prob[1];
+    Cuhre(2, 1, averageNHIntegrand, (void*)distribution, 1,
+            1e-3, 1e-12, 0,
+            0, 50000, 0,
+            NULL,
+            &nregions, &neval, &fail, integral, error, prob);
 
-	// TODO: test
-	printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
-				nregions, neval, fail);
-	printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
-				integral[0], error[0], prob[0]);
+    // TODO: test
+    printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
+                nregions, neval, fail);
+    printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
+                integral[0], error[0], prob[0]);
 
-	return integral[0];
+    return integral[0];
 }
 
 float
 Ashikhmin::gFactor(const Vector &v) const
 {
-	// TODO
-	return 0;
+    // TODO
+    return 0;
 }
 
 int
 Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
-    		const int *ncomp, double ff[], void *userdata)
+            const int *ncomp, double ff[], void *userdata)
 {
-	const MicrofacetDistribution *distribution =
-				reinterpret_cast<const MicrofacetDistribution*>(userdata);
-	float phi = xx[0] * 2*M_PI,
-		  theta = xx[1] * M_PI;
+    const MicrofacetDistribution *distribution =
+                reinterpret_cast<const MicrofacetDistribution*>(userdata);
+    float phi = xx[0] * 2*M_PI,
+          theta = xx[1] * M_PI;
 
-	float costheta, sintheta;
-	sincosf(theta, &sintheta, &costheta);
+    float costheta, sintheta;
+    sincosf(theta, &sintheta, &costheta);
 
-	Vector H = SphericalDirection(sintheta, costheta, phi);
-	float NdotH = costheta;
+    Vector H = SphericalDirection(sintheta, costheta, phi);
+    float NdotH = costheta;
 
-	ff[0] = NdotH * distribution->D(H) * sintheta;
-	ff[0] *= M_PI * (2*M_PI);
+    ff[0] = NdotH * distribution->D(H) * sintheta;
+    ff[0] *= M_PI * (2*M_PI);
 
-	return 0;
+    return 0;
 }
 
 void
 Ashikhmin::testSphVectorTransform(void)
 {
-	const int thetaRes = 1000, phiRes = 1000;
-	float maxErrTheta = 0.f, maxErrPhi = 0.f;
+    const int thetaRes = 1000, phiRes = 1000;
+    float maxErrTheta = 0.f, maxErrPhi = 0.f;
 
-	// The transform at boundary (theta = 0 or pi, phi = 0 or 2*pi) is not guaranteed to return the same value,
-	// so they are skipped. Test result on 07/15/2014 is "maxErrTheta = 4.053116e-06, maxErrPhi = 4.768372e-07"
-	for (int ti = 1; ti < thetaRes; ++ti) {
-		float theta = M_PI * ti / thetaRes,
-			  sintheta, costheta;
-		sincosf(theta, &sintheta, &costheta);
-		for (int pi = 1; pi < phiRes; ++pi) {
-			float phi = 2 * M_PI * pi / phiRes;
-			Vector v = SphericalDirection(sintheta, costheta, phi);
+    // The transform at boundary (theta = 0 or pi, phi = 0 or 2*pi) is not guaranteed to return the same value,
+    // so they are skipped. Test result on 07/15/2014 is "maxErrTheta = 4.053116e-06, maxErrPhi = 4.768372e-07"
+    for (int ti = 1; ti < thetaRes; ++ti) {
+        float theta = M_PI * ti / thetaRes,
+              sintheta, costheta;
+        sincosf(theta, &sintheta, &costheta);
+        for (int pi = 1; pi < phiRes; ++pi) {
+            float phi = 2 * M_PI * pi / phiRes;
+            Vector v = SphericalDirection(sintheta, costheta, phi);
 
-			float errTheta = fabsf(SphericalTheta(v) - theta),
-				  errPhi = fabsf(SphericalPhi(v) - phi);
-			if (errTheta > maxErrTheta) {
-				maxErrTheta = errTheta;
-			}
-			if (errPhi > maxErrPhi) {
-				maxErrPhi = errPhi;
-			}
-		}
-	}
+            float errTheta = fabsf(SphericalTheta(v) - theta),
+                  errPhi = fabsf(SphericalPhi(v) - phi);
+            if (errTheta > maxErrTheta) {
+                maxErrTheta = errTheta;
+            }
+            if (errPhi > maxErrPhi) {
+                maxErrPhi = errPhi;
+            }
+        }
+    }
 
-	printf("Ashikhmin::testSphVectorTransform():\n"
-		   "  maxErrTheta = %e, maxErrPhi = %e\n", maxErrTheta, maxErrPhi);
+    printf("Ashikhmin::testSphVectorTransform():\n"
+           "  maxErrTheta = %e, maxErrPhi = %e\n", maxErrTheta, maxErrPhi);
 }
 
 void
 Ashikhmin::testAverageNH(void)
 {
-	const float BlinnExponent = 100.f;
+    const float BlinnExponent = 100.f;
 
-	BlinnForAshikhmin *distribution = new BlinnForAshikhmin(BlinnExponent);
-	FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);	// This is not actually used
-	Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
-	float avgNH = ashikhmin->averageNH();
+    BlinnForAshikhmin *distribution = new BlinnForAshikhmin(BlinnExponent);
+    FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);    // This is not actually used
+    Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
+    float avgNH = ashikhmin->averageNH();
 
-	printf("Average dot(N,H) for Blinn exponent %.2f is %f\n", BlinnExponent, avgNH);
+    printf("Average dot(N,H) for Blinn exponent %.2f is %f\n", BlinnExponent, avgNH);
 }
 
 
