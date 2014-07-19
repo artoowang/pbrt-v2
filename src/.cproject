@@ -271,11 +271,12 @@
 									<listOptionValue builtIn="false" value="/usr/local/include"/>
 									<listOptionValue builtIn="false" value="/home/artoo/pbrt-v2/src"/>
 									<listOptionValue builtIn="false" value="/home/artoo/pbrt-v2/src/core"/>
-									<listOptionValue builtIn="false" value="/usr/local/include"/>
 									<listOptionValue builtIn="false" value="/usr/include/i386-linux-gnu"/>
 									<listOptionValue builtIn="false" value="/usr/lib/gcc/i686-linux-gnu/4.6/include"/>
 									<listOptionValue builtIn="false" value="/usr/include"/>
 									<listOptionValue builtIn="false" value="/usr/lib/gcc/i686-linux-gnu/4.6/include-fixed"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6"/>
+									<listOptionValue builtIn="false" value="/usr/include/c++/4.6/i686-linux-gnu"/>
 								</option>
 								<option id="org.eclipse.cdt.build.core.settings.holder.symbols.602012043" name="Symbols" superClass="org.eclipse.cdt.build.core.settings.holder.symbols" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="PBRT_HAS_OPENEXR"/>

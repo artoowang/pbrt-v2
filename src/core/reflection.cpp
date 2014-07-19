@@ -499,9 +499,17 @@ Spectrum BxDF::rho(int nSamples, const float *samples1,
     return r / (M_PI*nSamples);
 }
 
+float
+BlinnForAshikhmin::D(const Vector &wh) const
+{
+	// Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
+	float costhetah = max(CosTheta(wh), 0.f);	// TODO: Interesting, this breaks PBRT. Why?
+	return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
+}
 
 // Currently BlinnForAshikhmin::Sample_f() and Pdf() is the same as Blinn
-void BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
+void
+BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
                      float *pdf) const {
     // Compute sampled half-angle vector $\wh$ for Blinn distribution
     float costheta = powf(u1, 1.f / (exponent+1));
@@ -520,8 +528,8 @@ void BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u
     *pdf = blinn_pdf;
 }
 
-
-float BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const {
+float
+BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const {
     Vector wh = Normalize(wo + wi);
     float costheta = AbsCosTheta(wh);
     // Compute PDF for $\wi$ from Blinn distribution
@@ -540,9 +548,22 @@ Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
 }
 
 Spectrum
-Ashikhmin::f(const Vector &wo, const Vector &wi) const
+Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
 {
-    Vector wh = wi + wo;
+	// In PBRT's implementation, woInput and wiInput is not guaranteed to be at the same side of the shading normal
+	// My implementation of BlinnForAshikhmin::D() has domain for the whole sphere, and it's centered at
+	// the local normal (0, 0, 1). Therefore, we need to inverse them if they are on the other side.
+	// (They should also be at the same side since this lobe is defined as BSDF_REFLECTION.)
+
+	Vector wo = woInput, wi = wiInput;
+	Assert(SameHemisphere(wo, wi));
+	if (wo.z < 0.f) {
+		// Reverse side
+		wo = -wo;
+		wi = -wi;
+	}
+
+    Vector wh = wi + wo;	// Now wh is guaranteed to be at the same side as the local shading normal (0, 0, 1)
     if (wh.x == 0. && wh.y == 0. && wh.z == 0.) {
         return Spectrum(0.f);
     }
