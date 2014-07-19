@@ -89,6 +89,7 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
 	// TODO: tests
 	Ashikhmin::testSphVectorTransform();
 	Ashikhmin::testAverageNH();
+	Quaternion::unitTest();
 
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);

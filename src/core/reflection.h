@@ -445,7 +445,7 @@ public:
                      exponent = e; }
     float D(const Vector &wh) const {
     	// Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
-        float costhetah = max(CosTheta(wh), 0.f);
+        float costhetah = max(CosTheta(wh), 0.f);	// TODO: Interesting, this breaks PBRT. Why?
         return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
     }
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;

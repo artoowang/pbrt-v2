@@ -103,6 +103,9 @@ struct Quaternion {
     // Quaternion Public Data
     Vector v;
     float w;
+
+    // For test
+    static void unitTest(void);
 };
 
 

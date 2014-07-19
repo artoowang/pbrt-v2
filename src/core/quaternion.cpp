@@ -129,7 +129,7 @@ Quaternion::rotationTo(const Vector &uFrom, const Vector &uTo)
 		w = 1 + dot;
 		// Normalize
 		// Since dot > -1, w > 0, so f > 0 - no need to worry about divide-by-zero
-		float f = v.LengthSquared() + w * w;
+		float f = sqrtf(v.LengthSquared() + w * w);
 		v /= f;
 		w /= f;
 	}
@@ -150,3 +150,33 @@ Quaternion Slerp(float t, const Quaternion &q1,
 }
 
 
+void
+Quaternion::unitTest(void)
+{
+	const int thetaRes = 1000, phiRes = 1000;
+	Vector uFrom(0.f, 1.f, 0.f);
+	float maxErr = 0.f;
+
+	uFrom = Normalize(uFrom);
+
+	for (int ti = 0; ti <= thetaRes; ++ti) {
+		float theta = M_PI * ti / thetaRes,
+			  sintheta, costheta;
+		sincosf(theta, &sintheta, &costheta);
+		for (int pi = 0; pi <= phiRes; ++pi) {
+			float phi = 2 * M_PI * pi / phiRes;
+			Vector uTo = SphericalDirection(sintheta, costheta, phi);
+
+			Quaternion q(uFrom, uTo);
+			Transform t = q.ToTransform();
+			Vector uTo2 = t(uFrom);
+			float err = (uTo - uTo2).Length();
+			if (err > maxErr) {
+				maxErr = err;
+			}
+		}
+	}
+
+	printf("Quaternion::unitTest():\n"
+		   "  maxErr = %e\n", maxErr);
+}
