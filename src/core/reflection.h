@@ -531,7 +531,7 @@ public:
 
     // For tests
     static void testSphVectorTransform(void);
-    static void testAverageNH(void);
+    static void testAverageNHAndFactor_g(void);
 
 private:
     float averageNH(void) const;
@@ -539,10 +539,17 @@ private:
 
     static int averageNHIntegrand(const int *ndim, const double xx[],
             const int *ncomp, double ff[], void *userdata);
+    static int gFactorIntegrand(const int *ndim, const double xx[],
+                const int *ncomp, double ff[], void *userdata);
 
     Spectrum R;
     MicrofacetDistribution *distribution;
     Fresnel *fresnel;
+
+    struct gFactorIntegrandData {
+        const MicrofacetDistribution *distribution;
+        Transform nToV;
+    };
 };
 
 

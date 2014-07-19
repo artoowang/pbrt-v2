@@ -29,7 +29,7 @@ fi
 
 echo >&2 "Write to ${OUTPUT_DIR}/${TIF_FILE}"
 
-pbrt "$PBRT_FILE"
+pbrt --ncores 1 "$PBRT_FILE"
 exrtotiff "$EXR_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
 "$DISPLAY_CMD" "${OUTPUT_DIR}/${TIF_FILE}"
 

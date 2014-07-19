@@ -570,8 +570,11 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     wh = Normalize(wh);
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
-    float avgNH = 1.f;  // TODO
-    float g_wi = 1.f, g_wo = 1.f;   // TODO
+    float avgNH = averageNH();  // TODO: no need to recompute everytime
+    float g_wi = gFactor(wi), g_wo = gFactor(wo);
+    fprintf(stderr, "%f %f %f\n", avgNH, g_wi, g_wo);
+    //float avgNH = 1;
+    //float g_wi = 1, g_wo = 1;
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * distribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
@@ -609,19 +612,12 @@ Ashikhmin::averageNH(void) const
             &nregions, &neval, &fail, integral, error, prob);
 
     // TODO: test
-    printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
-                nregions, neval, fail);
-    printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
-                integral[0], error[0], prob[0]);
+    //printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
+    //            nregions, neval, fail);
+    //printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
+    //            integral[0], error[0], prob[0]);
 
     return integral[0];
-}
-
-float
-Ashikhmin::gFactor(const Vector &v) const
-{
-    // TODO
-    return 0;
 }
 
 int
@@ -640,6 +636,51 @@ Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
     float NdotH = costheta;
 
     ff[0] = NdotH * distribution->D(H) * sintheta;
+    ff[0] *= M_PI * (2*M_PI);
+
+    return 0;
+}
+
+float
+Ashikhmin::gFactor(const Vector &v) const
+{
+    Quaternion q(Vector(0, 0, 1), v);
+    gFactorIntegrandData data;
+
+    data.distribution = distribution;
+    data.nToV = q.ToTransform();
+
+    int nregions, neval, fail;
+    double integral[1], error[1], prob[1];
+    Cuhre(2, 1, gFactorIntegrand, (void*)&data, 1,
+            1e-3, 1e-12, 0,
+            0, 50000, 0,
+            NULL,
+            &nregions, &neval, &fail, integral, error, prob);
+
+    return integral[0];
+}
+
+int
+Ashikhmin::gFactorIntegrand(const int *ndim, const double xx[],
+            const int *ncomp, double ff[], void *userdata)
+{
+    gFactorIntegrandData *data =
+            reinterpret_cast<gFactorIntegrandData*>(userdata);
+    float phi = xx[0] * 2*M_PI,
+          theta = xx[1] * M_PI;
+
+    // Find H in the space defined by V
+    float costheta, sintheta;
+    sincosf(theta, &sintheta, &costheta);
+
+    Vector H = SphericalDirection(sintheta, costheta, phi);
+    float VdotH = costheta;
+
+    // Find H in the space defined by N
+    Vector H_N = data->nToV(H);
+
+    ff[0] = VdotH * data->distribution->D(H_N) * sintheta;
     ff[0] *= M_PI * (2*M_PI);
 
     return 0;
@@ -677,7 +718,7 @@ Ashikhmin::testSphVectorTransform(void)
 }
 
 void
-Ashikhmin::testAverageNH(void)
+Ashikhmin::testAverageNHAndFactor_g(void)
 {
     const float BlinnExponent = 100.f;
 
@@ -685,8 +726,13 @@ Ashikhmin::testAverageNH(void)
     FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);    // This is not actually used
     Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
     float avgNH = ashikhmin->averageNH();
+    float gFactorForN = ashikhmin->gFactor(Vector(0, 0, 1)),
+          gFactorFor45deg = ashikhmin->gFactor(Vector(1, 0, 1)/sqrtf(2));
 
-    printf("Average dot(N,H) for Blinn exponent %.2f is %f\n", BlinnExponent, avgNH);
+    printf("For Blinn exponent %.2f:\n", BlinnExponent);
+    printf("  Average dot(N,H) is %f\n", avgNH);
+    printf("  g factor for N is %f\n", gFactorForN);
+    printf("  g factor for 45 degree is %f\n", gFactorFor45deg);
 }
 
 
