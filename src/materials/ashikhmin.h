@@ -49,9 +49,14 @@ public:
     BSDF *GetBSDF(const DifferentialGeometry &dgGeom,
                   const DifferentialGeometry &dgShading,
                   MemoryArena &arena) const;
+
+    static void testMIPMap(void);
+
 private:
     Reference<Texture<Spectrum> > Ks;
     Reference<Texture<float> > roughness, bumpMap;
+
+    static float testMIPMapFunc(float x, float y);
 };
 
 

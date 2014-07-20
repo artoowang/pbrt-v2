@@ -199,7 +199,9 @@ MIPMap<T>::MIPMap(uint32_t sres, uint32_t tres, const T *img, bool doTri,
     }
 }
 
-
+// level: 0 to nLevels-1
+// s, t: (0,0) to (l.uSize()-1,l.vSize()-1)
+//       wrapping depends on wrapMode
 template <typename T>
 const T &MIPMap<T>::Texel(uint32_t level, int s, int t) const {
     Assert(level < nLevels);
@@ -234,7 +236,8 @@ MIPMap<T>::~MIPMap() {
     delete[] pyramid;
 }
 
-
+// width: TODO: what is this? for default value (0), level will be negative
+// s, t: [0,1]x[0,1]
 template <typename T>
 T MIPMap<T>::Lookup(float s, float t, float width) const {
     // Compute MIPMap level for trilinear filtering
@@ -254,10 +257,15 @@ T MIPMap<T>::Lookup(float s, float t, float width) const {
     }
 }
 
-
+// level: 0 to nLevels-1
+// s, t: [0,1]x[0,1]
 template <typename T>
 T MIPMap<T>::triangle(uint32_t level, float s, float t) const {
     level = Clamp(level, 0, nLevels-1);
+    // The following maps s and t from [0,1]x[0,1]
+    // to [-0.5,pyramid[level]->uSize()-0.5]x[-0.5,pyramid[level]->vSize()-0.5]
+    // (i.e., (s,t) = (0,0) maps to the center of the upper-left pixel, and
+    //  (s,t) = (pyramid[level]->uSize()-1,pyramid[level]->vSize()-1) to the center of the lower-right pixel)
     s = s * pyramid[level]->uSize() - 0.5f;
     t = t * pyramid[level]->vSize() - 0.5f;
     int s0 = Floor2Int(s), t0 = Floor2Int(t);
