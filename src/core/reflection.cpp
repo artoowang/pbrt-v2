@@ -570,11 +570,11 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     wh = Normalize(wh);
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
-    float avgNH = averageNH();  // TODO: no need to recompute everytime
-    float g_wi = gFactor(wi), g_wo = gFactor(wo);
-    fprintf(stderr, "%f %f %f\n", avgNH, g_wi, g_wo);
-    //float avgNH = 1;
-    //float g_wi = 1, g_wo = 1;
+    //float avgNH = averageNH();  // TODO: no need to recompute everytime
+    //float g_wi = gFactor(wi), g_wo = gFactor(wo);
+    //fprintf(stderr, "%f %f %f\n", avgNH, g_wi, g_wo);
+    float avgNH = 1;
+    float g_wi = 1, g_wo = 1;
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * distribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
