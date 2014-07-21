@@ -435,22 +435,6 @@ private:
 };
 
 
-// D is normalized for hemisphere (instead of the projected hemisphere as in Blinn)
-// I.e., Integrate[D(wh), {wh in hemisphere}] = 1
-// Currently Sample_f() and Pdf() implementation is the same as Blinn
-// I think Pdf() is against wi instead of wh, but still need to confirm that
-class BlinnForAshikhmin : public MicrofacetDistribution {
-public:
-    BlinnForAshikhmin(float e) { if (e > 10000.f || isnan(e)) e = 10000.f;
-                     exponent = e; }
-    float D(const Vector &wh) const;
-    virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
-    virtual float Pdf(const Vector &wi, const Vector &wo) const;
-private:
-    float exponent;
-};
-
-
 class Anisotropic : public MicrofacetDistribution {
 public:
     // Anisotropic Public Methods
@@ -517,39 +501,6 @@ private:
     // RegularHalfangleBRDF Private Data
     const float *brdf;
     const uint32_t nThetaH, nThetaD, nPhiD;
-};
-
-
-class Ashikhmin : public BxDF {
-public:
-    Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-        MicrofacetDistribution *d);
-    Spectrum f(const Vector &wo, const Vector &wi) const;
-    Spectrum Sample_f(const Vector &wo, Vector *wi,
-                              float u1, float u2, float *pdf) const;
-    float Pdf(const Vector &wo, const Vector &wi) const;
-
-    // For tests
-    static void testSphVectorTransform(void);
-    static void testAverageNHAndFactor_g(void);
-
-private:
-    float averageNH(void) const;
-    float gFactor(const Vector &v) const;
-
-    static int averageNHIntegrand(const int *ndim, const double xx[],
-            const int *ncomp, double ff[], void *userdata);
-    static int gFactorIntegrand(const int *ndim, const double xx[],
-                const int *ncomp, double ff[], void *userdata);
-
-    Spectrum R;
-    MicrofacetDistribution *distribution;
-    Fresnel *fresnel;
-
-    struct gFactorIntegrandData {
-        const MicrofacetDistribution *distribution;
-        Transform nToV;
-    };
 };
 
 

@@ -1,6 +1,6 @@
 
 /*
-    pbrt source code Copyright(c) 1998-2012 Matt Pharr and Greg Humphreys.
+    pbrt source code Copyright(c) 2014 Chun-Po Wang.
 
     This file is part of pbrt.
 
@@ -33,7 +33,7 @@
 #include "stdafx.h"
 #include "materials/ashikhmin.h"
 #include "spectrum.h"
-#include "reflection.h"
+#include "core/ashikhmin.h"
 #include "paramset.h"
 #include "texture.h"
 
