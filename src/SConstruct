@@ -19,7 +19,10 @@ Export('has_dtrace')
 #has_gcd = float(platform.mac_ver()[0][:4] >= 10.6)
 has_gcd = False
 
-build_64bit = False
+if platform.machine() == 'x86_64':
+    build_64bit = True
+else:
+    build_64bit = False
 
 parallel_libs = [ 'pthread' ]
 Export('parallel_libs')
@@ -61,6 +64,7 @@ env = Environment(CCFLAGS = [ '-Wall', '-g' ],
                   ENV = { 'PATH' : [ '/usr/local/bin', '/usr/bin', '/bin', 
                                      '/usr/sbin', '/sbin' ] })
 if build_64bit:
+    print 'Build 64bit ...'
     env.Append(CCFLAGS = [ '-m64' ],
                LINKFLAGS = [ '-m64' ])
 
@@ -95,8 +99,9 @@ if has_dtrace:
     debug_env.Append(CPPDEFINES = [ 'PBRT_PROBES_DTRACE' ])
 else:
     debug_env.Append(CPPDEFINES = [ 'PBRT_PROBES_NONE' ])
-if (arch == 'darwin'):
-    debug_env.Append(CPPFLAGS = [ '-Wno-mismatched-tags' ])
+# TODO: this doesn't seem to work with llvm-gcc
+#if (arch == 'darwin'):
+#    debug_env.Append(CPPFLAGS = [ '-Wno-mismatched-tags' ])
 build_envs['debug'] = debug_env
 
 release_env = env.Clone()

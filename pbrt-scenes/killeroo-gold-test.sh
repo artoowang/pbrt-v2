@@ -10,6 +10,9 @@ DISPLAY_CMD="i_view32"
 # Determine if display command is available
 if ! which "$DISPLAY_CMD"; then
     DISPLAY_CMD="eog"
+    if ! which "$DISPLAY_CMD"; then
+        DISPLAY_CMD="display"
+    fi
 fi
 
 mkdir -p "${OUTPUT_DIR}"

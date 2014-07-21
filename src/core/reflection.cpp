@@ -629,8 +629,8 @@ Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
     float phi = xx[0] * 2*M_PI,
           theta = xx[1] * M_PI;
 
-    float costheta, sintheta;
-    sincosf(theta, &sintheta, &costheta);
+    const float costheta = cosf(theta), 
+                sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
     float NdotH = costheta;
@@ -671,8 +671,8 @@ Ashikhmin::gFactorIntegrand(const int *ndim, const double xx[],
           theta = xx[1] * M_PI;
 
     // Find H in the space defined by V
-    float costheta, sintheta;
-    sincosf(theta, &sintheta, &costheta);
+    float costheta = cosf(theta), 
+          sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
     float VdotH = costheta;
@@ -696,8 +696,8 @@ Ashikhmin::testSphVectorTransform(void)
     // so they are skipped. Test result on 07/15/2014 is "maxErrTheta = 4.053116e-06, maxErrPhi = 4.768372e-07"
     for (int ti = 1; ti < thetaRes; ++ti) {
         float theta = M_PI * ti / thetaRes,
-              sintheta, costheta;
-        sincosf(theta, &sintheta, &costheta);
+              sintheta = sinf(theta), 
+              costheta = cosf(theta);
         for (int pi = 1; pi < phiRes; ++pi) {
             float phi = 2 * M_PI * pi / phiRes;
             Vector v = SphericalDirection(sintheta, costheta, phi);

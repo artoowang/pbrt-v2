@@ -95,8 +95,9 @@ Quaternion::Quaternion(const Transform &t) {
 void
 Quaternion::setAxisAngle(const Vector &axis, float angle)
 {
-    float sinha = 0.f, cosha = 0.f;
-    sincosf(angle * 0.5f, &sinha, &cosha);
+    const float halfAngle = 0.5f * angle,
+                sinha = sinf(halfAngle),
+                cosha = cosf(halfAngle);
     v = axis * sinha;
     w = cosha;
 }
@@ -161,8 +162,8 @@ Quaternion::unitTest(void)
 
     for (int ti = 0; ti <= thetaRes; ++ti) {
         float theta = M_PI * ti / thetaRes,
-              sintheta, costheta;
-        sincosf(theta, &sintheta, &costheta);
+              sintheta = sinf(theta), 
+              costheta = cosf(theta);
         for (int pi = 0; pi <= phiRes; ++pi) {
             float phi = 2 * M_PI * pi / phiRes;
             Vector uTo = SphericalDirection(sintheta, costheta, phi);
