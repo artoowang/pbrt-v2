@@ -553,10 +553,12 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     // In PBRT's implementation, woInput and wiInput is not guaranteed to be at the same side of the shading normal
     // My implementation of BlinnForAshikhmin::D() has domain for the whole sphere, and it's centered at
     // the local normal (0, 0, 1). Therefore, we need to inverse them if they are on the other side.
-    // (They should also be at the same side since this lobe is defined as BSDF_REFLECTION.)
+    // Note: because BSDF::f() determines BSDF_REFLECTION and BSDF_TRANSMISSION using ng (geometric normal) instead
+	//       of nn (shading normal), it's possible that woInput and wiInput has opposite sign of z-axis. Therefore,
+	//       we determine if the shading normal is at the opposite side using woInput (viewing direction) only: we
+	//       always make the viewing direction from the +Z side
 
     Vector wo = woInput, wi = wiInput;
-    Assert(SameHemisphere(wo, wi));
     if (wo.z < 0.f) {
         // Reverse side
         wo = -wo;
@@ -851,6 +853,8 @@ Spectrum BSDF::f(const Vector &woW, const Vector &wiW,
                  BxDFType flags) const {
     PBRT_STARTED_BSDF_EVAL();
     Vector wi = WorldToLocal(wiW), wo = WorldToLocal(woW);
+    // TODO: Why do we want to test against ng instead of nn?
+    //       If we test against ng, it's possible that we evaluate a BSDF_REFLECTION lobe when wi and wo have opposite sign z component (i.e., at different hemisphere)
     if (Dot(wiW, ng) * Dot(woW, ng) > 0) // ignore BTDFs
         flags = BxDFType(flags & ~BSDF_TRANSMISSION);
     else // ignore BRDFs
