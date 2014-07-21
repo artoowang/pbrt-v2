@@ -58,7 +58,8 @@ BlinnForAshikhmin::D(const Vector &wh) const
 // Currently BlinnForAshikhmin::Sample_f() and Pdf() is the same as Blinn
 void
 BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
-                     float *pdf) const {
+                     float *pdf) const
+{
     // Compute sampled half-angle vector $\wh$ for Blinn distribution
     float costheta = powf(u1, 1.f / (exponent+1));
     float sintheta = sqrtf(max(0.f, 1.f - costheta*costheta));
@@ -77,7 +78,8 @@ BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
 }
 
 float
-BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const {
+BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const
+{
     Vector wh = Normalize(wo + wi);
     float costheta = AbsCosTheta(wh);
     // Compute PDF for $\wi$ from Blinn distribution
@@ -85,6 +87,13 @@ BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const {
                       (2.f * M_PI * 4.f * Dot(wo, wh));
     if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
     return blinn_pdf;
+}
+
+bool
+MicrofacetDistributionComparator::operator() (const MicrofacetDistribution &a,
+        const MicrofacetDistribution &b) const
+{
+    return x<y;
 }
 
 Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,

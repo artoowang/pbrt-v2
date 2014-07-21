@@ -36,23 +36,35 @@
 #ifndef PBRT_CORE_ASHIKHMIN_H
 #define PBRT_CORE_ASHIKHMIN_H
 
+#include <map>
 #include "reflection.h"
+
+using std::map;
 
 // D is normalized for hemisphere (instead of the projected hemisphere as in Blinn)
 // I.e., Integrate[D(wh), {wh in hemisphere}] = 1
 // Currently Sample_f() and Pdf() implementation is the same as Blinn
 // I think Pdf() is against wi instead of wh, but still need to confirm that
-class BlinnForAshikhmin : public MicrofacetDistribution {
+class BlinnForAshikhmin : public MicrofacetDistribution
+{
 public:
     BlinnForAshikhmin(float e);
     float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
+    virtual string signature(void) const;
+
 private:
     float exponent;
 };
 
-class Ashikhmin : public BxDF {
+struct MicrofacetDistributionComparator
+{
+    bool operator() (const MicrofacetDistribution &a, const MicrofacetDistribution &b) const;
+};
+
+class Ashikhmin : public BxDF
+{
 public:
     Ashikhmin(const Spectrum &reflectance, Fresnel *f,
         MicrofacetDistribution *d);
@@ -60,6 +72,9 @@ public:
     Spectrum Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
+
+    // TODO: test
+    static map<MicrofacetDistribution, int, >
 
     // For tests
     static void testSphVectorTransform(void);
