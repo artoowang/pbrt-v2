@@ -33,14 +33,15 @@
 #include "stdafx.h"
 #include "ashikhmin.h"
 
+#include <sstream>
+
 // For numerical integration
 #include "cuba.h"
 
+using std::stringstream;
+
 BlinnForAshikhmin::BlinnForAshikhmin(float e)
 {
-    // TODO: test
-    fprintf(stderr, "BlinnForAshikhmin\n");
-
     if (e > 10000.f || isnan(e)) {
         e = 10000.f;
     }
@@ -89,17 +90,70 @@ BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const
     return blinn_pdf;
 }
 
-bool
-MicrofacetDistributionComparator::operator() (const MicrofacetDistribution &a,
-        const MicrofacetDistribution &b) const
+string
+BlinnForAshikhmin::signature(void) const
 {
-    return x<y;
+    stringstream ss;
+    ss.precision(5);
+    ss << std::scientific;
+    ss << "BlinnForAshikhmin:" << exponent;
+    return ss.str();
 }
 
+
+AshikhminCache::AshikhminCacheMap AshikhminCache::sCache;
+
+AshikhminCache::AshikhminCache() :
+        mDistribution(NULL), mAvgNH(1.f)
+{
+}
+
+AshikhminCache::AshikhminCache(const MicrofacetDistribution &distribution) :
+        mDistribution(&distribution),
+        mAvgNH(Ashikhmin::computeAverageNH(distribution))
+{
+    // TODO: Init g grid
+}
+
+float
+AshikhminCache::gFactor(const Vector &v) const
+{
+    // TODO
+    return 1.f;
+}
+
+float
+AshikhminCache::averageNH(void) const
+{
+    return mAvgNH;
+}
+
+const AshikhminCache&
+AshikhminCache::get(const MicrofacetDistribution &distribution)
+{
+    // TODO: need to use mutex to make it thread safe
+    AshikhminCacheMap::const_iterator it;
+    if ((it = sCache.find(distribution.signature())) != sCache.end()) {
+        // Return cached result
+        return it->second;
+
+    } else {
+        // Create a new cache
+        AshikhminCache cache(distribution);
+        std::pair<AshikhminCacheMap::iterator, bool> result =
+                sCache.insert(AshikhminCacheMap::value_type(distribution.signature(), cache));
+        Assert(result.second == true);
+        fprintf(stderr, "Add %s to cache\n", result.first->first.c_str());  // TODO: test
+        return result.first->second;
+    }
+}
+
+
 Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-                       MicrofacetDistribution *d)
+                       MicrofacetDistribution *d)   // TODO: use reference
     : BxDF(BxDFType(BSDF_REFLECTION | BSDF_GLOSSY)),
-     R(reflectance), distribution(d), fresnel(f)
+     R(reflectance), mDistribution(d), fresnel(f),
+     mCache(AshikhminCache::get(*d))
 {
 }
 
@@ -134,7 +188,7 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     float avgNH = 1;
     float g_wi = 1, g_wo = 1;
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
-    return R * distribution->D(wh) * avgNH * F /
+    return R * mDistribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
 }
 
@@ -142,7 +196,7 @@ Spectrum
 Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const 
 {
-    distribution->Sample_f(wo, wi, u1, u2, pdf);
+    mDistribution->Sample_f(wo, wi, u1, u2, pdf);
     if (!SameHemisphere(wo, *wi)) {
         return Spectrum(0.f);
     }
@@ -155,15 +209,22 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
     if (!SameHemisphere(wo, wi)) {
         return 0.f;
     }
-    return distribution->Pdf(wo, wi);
+    return mDistribution->Pdf(wo, wi);
 }
 
 float
 Ashikhmin::averageNH(void) const
 {
+    // TODO
+    return 1.f;
+}
+
+float
+Ashikhmin::computeAverageNH(const MicrofacetDistribution &distribution)
+{
     int nregions, neval, fail;
     double integral[1], error[1], prob[1];
-    Cuhre(2, 1, averageNHIntegrand, (void*)distribution, 1,
+    Cuhre(2, 1, averageNHIntegrand, (void*)&distribution, 1,
             1e-3, 1e-12, 0,
             0, 50000, 0,
             NULL,
@@ -202,10 +263,17 @@ Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
 float
 Ashikhmin::gFactor(const Vector &v) const
 {
-    Quaternion q(Vector(0, 0, 1), v);
-    gFactorIntegrandData data;
+    // TODO
+    return 1.f;
+}
 
-    data.distribution = distribution;
+float
+Ashikhmin::computeGFactor(const Vector &v, const MicrofacetDistribution &distribution)
+{
+    Quaternion q(Vector(0, 0, 1), v);
+    GFactorIntegrandData data;
+
+    data.distribution = &distribution;
     data.nToV = q.ToTransform();
 
     int nregions, neval, fail;
@@ -223,8 +291,8 @@ int
 Ashikhmin::gFactorIntegrand(const int *ndim, const double xx[],
             const int *ncomp, double ff[], void *userdata)
 {
-    gFactorIntegrandData *data =
-            reinterpret_cast<gFactorIntegrandData*>(userdata);
+    GFactorIntegrandData *data =
+            reinterpret_cast<GFactorIntegrandData*>(userdata);
     float phi = xx[0] * 2*M_PI,
           theta = xx[1] * M_PI;
 
@@ -280,12 +348,10 @@ Ashikhmin::testAverageNHAndFactor_g(void)
 {
     const float BlinnExponent = 100.f;
 
-    BlinnForAshikhmin *distribution = new BlinnForAshikhmin(BlinnExponent);
-    FresnelDielectric *fresnel = new FresnelDielectric(1.5f, 1.f);    // This is not actually used
-    Ashikhmin *ashikhmin = new Ashikhmin(Spectrum(1.f), fresnel, distribution);
-    float avgNH = ashikhmin->averageNH();
-    float gFactorForN = ashikhmin->gFactor(Vector(0, 0, 1)),
-          gFactorFor45deg = ashikhmin->gFactor(Vector(1, 0, 1)/sqrtf(2));
+    BlinnForAshikhmin distribution(BlinnExponent);
+    float avgNH = Ashikhmin::computeAverageNH(distribution);
+    float gFactorForN = Ashikhmin::computeGFactor(Vector(0, 0, 1), distribution),
+          gFactorFor45deg = Ashikhmin::computeGFactor(Vector(1, 0, 1)/sqrtf(2), distribution);
 
     printf("For Blinn exponent %.2f:\n", BlinnExponent);
     printf("  Average dot(N,H) is %f\n", avgNH);

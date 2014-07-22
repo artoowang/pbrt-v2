@@ -38,6 +38,7 @@
 
 #include <map>
 #include "reflection.h"
+#include "mipmap.h"
 
 using std::map;
 
@@ -58,9 +59,27 @@ private:
     float exponent;
 };
 
-struct MicrofacetDistributionComparator
+class AshikhminCache
 {
-    bool operator() (const MicrofacetDistribution &a, const MicrofacetDistribution &b) const;
+public:
+    // This is necessary for STL map
+    AshikhminCache();
+
+    float gFactor(const Vector &v) const;
+    float averageNH(void) const;
+
+    static const AshikhminCache& get(const MicrofacetDistribution &distribution);
+
+protected:
+    // A filled cache is only created by static member function
+    AshikhminCache(const MicrofacetDistribution &distribution);
+
+    MicrofacetDistribution const *mDistribution;
+    float mAvgNH;
+    MIPMap<float> mGFactorGrid;
+
+    typedef map<string, AshikhminCache> AshikhminCacheMap;
+    static AshikhminCacheMap sCache;
 };
 
 class Ashikhmin : public BxDF
@@ -73,8 +92,9 @@ public:
                               float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
 
-    // TODO: test
-    static map<MicrofacetDistribution, int, >
+    // Utility functions
+    static float computeGFactor(const Vector &v, const MicrofacetDistribution &distribution);
+    static float computeAverageNH(const MicrofacetDistribution &distribution);
 
     // For tests
     static void testSphVectorTransform(void);
@@ -90,10 +110,11 @@ private:
                 const int *ncomp, double ff[], void *userdata);
 
     Spectrum R;
-    MicrofacetDistribution *distribution;
+    MicrofacetDistribution *mDistribution;
     Fresnel *fresnel;
+    AshikhminCache mCache;
 
-    struct gFactorIntegrandData {
+    struct GFactorIntegrandData {
         const MicrofacetDistribution *distribution;
         Transform nToV;
     };
