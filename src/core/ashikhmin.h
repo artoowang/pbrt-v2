@@ -37,6 +37,7 @@
 #define PBRT_CORE_ASHIKHMIN_H
 
 #include <map>
+#include <boost/thread/mutex.hpp>
 #include "reflection.h"
 #include "mipmap.h"
 
@@ -80,6 +81,7 @@ protected:
 
     typedef map<string, AshikhminCache> AshikhminCacheMap;
     static AshikhminCacheMap sCache;
+    static boost::mutex sMutex;
 };
 
 class Ashikhmin : public BxDF

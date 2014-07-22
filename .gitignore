@@ -33,3 +33,4 @@ pbrt-scenes/
 Cuba-3.3
 
 .DS_Store
+.cproject*

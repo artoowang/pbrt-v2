@@ -102,6 +102,7 @@ BlinnForAshikhmin::signature(void) const
 
 
 AshikhminCache::AshikhminCacheMap AshikhminCache::sCache;
+boost::mutex AshikhminCache::sMutex;
 
 AshikhminCache::AshikhminCache() :
         mDistribution(NULL), mAvgNH(1.f)
@@ -131,7 +132,7 @@ AshikhminCache::averageNH(void) const
 const AshikhminCache&
 AshikhminCache::get(const MicrofacetDistribution &distribution)
 {
-    // TODO: need to use mutex to make it thread safe
+    boost::mutex::scoped_lock scopedLock(sMutex);
     AshikhminCacheMap::const_iterator it;
     if ((it = sCache.find(distribution.signature())) != sCache.end()) {
         // Return cached result
