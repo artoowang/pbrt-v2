@@ -63,8 +63,8 @@ private:
 class AshikhminCache
 {
 public:
-    // This is necessary for STL map
-    AshikhminCache();
+    AshikhminCache();   // This is necessary for STL map
+    virtual ~AshikhminCache();
 
     float gFactor(const Vector &v) const;
     float averageNH(void) const;
@@ -72,14 +72,15 @@ public:
     static const AshikhminCache& get(const MicrofacetDistribution &distribution);
 
 protected:
+    float mAvgNH;
+    MIPMap<float> *mGFactorGrid;
+
     // A filled cache is only created by static member function
     AshikhminCache(const MicrofacetDistribution &distribution);
 
-    MicrofacetDistribution const *mDistribution;
-    float mAvgNH;
-    MIPMap<float> mGFactorGrid;
+    void initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution &distribution);
 
-    typedef map<string, AshikhminCache> AshikhminCacheMap;
+    typedef map<string, AshikhminCache*> AshikhminCacheMap;
     static AshikhminCacheMap sCache;
     static boost::mutex sMutex;
 };

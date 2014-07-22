@@ -105,22 +105,69 @@ AshikhminCache::AshikhminCacheMap AshikhminCache::sCache;
 boost::mutex AshikhminCache::sMutex;
 
 AshikhminCache::AshikhminCache() :
-        mDistribution(NULL), mAvgNH(1.f)
+        mAvgNH(-1.f), mGFactorGrid(NULL)
 {
 }
 
 AshikhminCache::AshikhminCache(const MicrofacetDistribution &distribution) :
-        mDistribution(&distribution),
-        mAvgNH(Ashikhmin::computeAverageNH(distribution))
+        mAvgNH(Ashikhmin::computeAverageNH(distribution)), mGFactorGrid(NULL)
 {
-    // TODO: Init g grid
+    // TODO: test
+    fprintf(stderr, "Cache for %s created.\n", distribution.signature().c_str());
+
+    // Initialize grid of factor g
+    // TODO: currently using 32x32
+    const int thetaRes = 32, phiRes = 32;
+    initGGrid(thetaRes, phiRes, distribution);
+}
+
+AshikhminCache::~AshikhminCache()
+{
+    if (mGFactorGrid != NULL) {
+        delete mGFactorGrid;
+        mGFactorGrid = NULL;
+    }
+}
+
+void
+AshikhminCache::initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution &distribution)
+{
+    float *gGrid = new float[thetaRes * phiRes];
+
+    Assert(gGrid != NULL);  // TODO: error handling
+
+    // The center of the upper-left pixel (x,y) = (0,0) is mapped to
+    // (s,t) = (0,0)+half_pixel_size, while the lower-right pixel (x,y) = (width-1,height-1)
+    // is mapped to (s,t) = (1,1)-half_pixel_size
+    // I.e., s = (x+0.5)/width, t = (y+0.5)/height
+    // Then, theta = s*pi, phi = t*2*pi
+    for (int x = 0; x < thetaRes; ++x) {
+        const float s = (x + 0.5f) / thetaRes,
+                    theta = M_PI * s,
+                    costheta = cosf(theta),
+                    sintheta = sinf(theta);
+        for (int y = 0; y < phiRes; ++y) {
+            const float t = (y + 0.5f) / phiRes,
+                        phi = 2.f * M_PI * t;
+
+            Vector v = SphericalDirection(sintheta, costheta, phi);
+            gGrid[y*thetaRes + x] = Ashikhmin::computeGFactor(v, distribution);
+        }
+    }
+
+    mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid, false, 8.f, TEXTURE_CLAMP);
+    delete [] gGrid;
 }
 
 float
 AshikhminCache::gFactor(const Vector &v) const
 {
-    // TODO
-    return 1.f;
+    Assert(mGFactorGrid != NULL);
+    const float theta = SphericalTheta(v),
+                s = theta * INV_PI,
+                phi = SphericalPhi(v),
+                t = phi * INV_TWOPI;
+    return mGFactorGrid->Lookup(s, t);
 }
 
 float
@@ -136,16 +183,18 @@ AshikhminCache::get(const MicrofacetDistribution &distribution)
     AshikhminCacheMap::const_iterator it;
     if ((it = sCache.find(distribution.signature())) != sCache.end()) {
         // Return cached result
-        return it->second;
+        Assert(it->second != NULL);
+        return *(it->second);
 
     } else {
         // Create a new cache
-        AshikhminCache cache(distribution);
+        AshikhminCache *cache = new AshikhminCache(distribution);   // TODO: is there a way to release them upon program exit?
+        Assert(cache != NULL); // TODO: error handling
         std::pair<AshikhminCacheMap::iterator, bool> result =
                 sCache.insert(AshikhminCacheMap::value_type(distribution.signature(), cache));
         Assert(result.second == true);
-        fprintf(stderr, "Add %s to cache\n", result.first->first.c_str());  // TODO: test
-        return result.first->second;
+        Assert(result.first->second != NULL);
+        return *(result.first->second);
     }
 }
 
@@ -340,22 +389,29 @@ Ashikhmin::testSphVectorTransform(void)
         }
     }
 
-    printf("Ashikhmin::testSphVectorTransform():\n"
-           "  maxErrTheta = %e, maxErrPhi = %e\n", maxErrTheta, maxErrPhi);
+    fprintf(stderr, "Ashikhmin::testSphVectorTransform():\n"
+                    "  maxErrTheta = %e, maxErrPhi = %e\n", maxErrTheta, maxErrPhi);
 }
 
 void
 Ashikhmin::testAverageNHAndFactor_g(void)
 {
     const float BlinnExponent = 100.f;
+    const Vector N(0, 0, 1), V45(1/sqrtf(2), 0, 1/sqrtf(2));
 
     BlinnForAshikhmin distribution(BlinnExponent);
     float avgNH = Ashikhmin::computeAverageNH(distribution);
-    float gFactorForN = Ashikhmin::computeGFactor(Vector(0, 0, 1), distribution),
-          gFactorFor45deg = Ashikhmin::computeGFactor(Vector(1, 0, 1)/sqrtf(2), distribution);
+    float gFactorForN = Ashikhmin::computeGFactor(N, distribution),
+          gFactorFor45deg = Ashikhmin::computeGFactor(V45, distribution);
 
-    printf("For Blinn exponent %.2f:\n", BlinnExponent);
-    printf("  Average dot(N,H) is %f\n", avgNH);
-    printf("  g factor for N is %f\n", gFactorForN);
-    printf("  g factor for 45 degree is %f\n", gFactorFor45deg);
+    // Test cache
+    const AshikhminCache &cache = AshikhminCache::get(distribution);
+    float cacheAvgNH = cache.averageNH();
+    float cacheGFactorForN = cache.gFactor(N),
+          cacheGFactorFor45deg = cache.gFactor(V45);
+
+    fprintf(stderr, "For Blinn exponent %.2f:\n", BlinnExponent);
+    fprintf(stderr, "  Average dot(N,H) is %f (%f)\n", avgNH, cacheAvgNH);
+    fprintf(stderr, "  g factor for N is %f (%f)\n", gFactorForN, cacheGFactorForN);
+    fprintf(stderr, "  g factor for 45 degree is %f (%f)\n", gFactorFor45deg, cacheGFactorFor45deg);
 }
