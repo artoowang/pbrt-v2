@@ -36,9 +36,12 @@
 #include <sstream>
 
 // For numerical integration
+#include "cubature-1.0/cubature.h"
 #include "cuba.h"
 
 using std::stringstream;
+
+const double sCubatureRelError = 1e-4;
 
 BlinnForAshikhmin::BlinnForAshikhmin(float e)
 {
@@ -232,11 +235,12 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     wh = Normalize(wh);
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
-    //float avgNH = averageNH();  // TODO: no need to recompute everytime
-    //float g_wi = gFactor(wi), g_wo = gFactor(wo);
+    float avgNH = averageNH();
+    float g_wi = gFactor(wi), g_wo = gFactor(wo);
+    // TODO: remove
     //fprintf(stderr, "%f %f %f\n", avgNH, g_wi, g_wo);
-    float avgNH = 1;
-    float g_wi = 1, g_wo = 1;
+    //float avgNH = 1;
+    //float g_wi = 1, g_wo = 1;
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * mDistribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
@@ -265,20 +269,22 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
 float
 Ashikhmin::averageNH(void) const
 {
-    // TODO
-    return 1.f;
+    return mCache.averageNH();
 }
 
 float
 Ashikhmin::computeAverageNH(const MicrofacetDistribution &distribution)
 {
-    int nregions, neval, fail;
-    double integral[1], error[1], prob[1];
-    Cuhre(2, 1, averageNHIntegrand, (void*)&distribution, 1,
-            1e-3, 1e-12, 0,
-            0, 50000, 0,
-            NULL,
-            &nregions, &neval, &fail, integral, error, prob);
+    // First dimension is phi, second theta
+    const double xmin[2] = {0, 0},
+                 xmax[2] = {2*M_PI, M_PI};
+    double val = 0.f, error = 0.f;
+    int ret = hcubature(1, averageNHIntegrand, (void*)&distribution,
+            2, xmin, xmax,
+            0, 0, sCubatureRelError,
+            ERROR_INDIVIDUAL, &val, &error);
+
+    Assert(ret == 0);
 
     // TODO: test
     //printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
@@ -286,26 +292,24 @@ Ashikhmin::computeAverageNH(const MicrofacetDistribution &distribution)
     //printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
     //            integral[0], error[0], prob[0]);
 
-    return integral[0];
+    return val;
 }
 
+// ndim should be 2, fdim should be 1
 int
-Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
-            const int *ncomp, double ff[], void *userdata)
+Ashikhmin::averageNHIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+        unsigned /*fdim*/, double *fval)
 {
     const MicrofacetDistribution *distribution =
-                reinterpret_cast<const MicrofacetDistribution*>(userdata);
-    float phi = xx[0] * 2*M_PI,
-          theta = xx[1] * M_PI;
-
+                reinterpret_cast<const MicrofacetDistribution*>(fdata);
+    const float phi = x[0], theta = x[1];
     const float costheta = cosf(theta), 
                 sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
     float NdotH = costheta;
 
-    ff[0] = NdotH * distribution->D(H) * sintheta;
-    ff[0] *= M_PI * (2*M_PI);
+    fval[0] = NdotH * distribution->D(H) * sintheta;
 
     return 0;
 }
@@ -313,8 +317,7 @@ Ashikhmin::averageNHIntegrand(const int *ndim, const double xx[],
 float
 Ashikhmin::gFactor(const Vector &v) const
 {
-    // TODO
-    return 1.f;
+    return mCache.gFactor(v);
 }
 
 float
@@ -326,28 +329,37 @@ Ashikhmin::computeGFactor(const Vector &v, const MicrofacetDistribution &distrib
     data.distribution = &distribution;
     data.nToV = q.ToTransform();
 
-    int nregions, neval, fail;
-    double integral[1], error[1], prob[1];
-    Cuhre(2, 1, gFactorIntegrand, (void*)&data, 1,
-            1e-3, 1e-12, 0,
-            0, 50000, 0,
-            NULL,
-            &nregions, &neval, &fail, integral, error, prob);
+    // First dimension is phi, second theta
+    const double xmin[2] = {0, 0},
+                 xmax[2] = {2*M_PI, M_PI};
+    double val = 0.f, error = 0.f;
+    int ret = hcubature(1, gFactorIntegrand, (void*)&data,
+            2, xmin, xmax,
+            0, 0, sCubatureRelError,
+            ERROR_INDIVIDUAL, &val, &error);
 
-    return integral[0];
+    Assert(ret == 0);
+
+    // TODO: test
+    //printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
+    //            nregions, neval, fail);
+    //printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
+    //            integral[0], error[0], prob[0]);
+
+    return val;
 }
 
+// ndim should be 2, fdim should be 1
 int
-Ashikhmin::gFactorIntegrand(const int *ndim, const double xx[],
-            const int *ncomp, double ff[], void *userdata)
+Ashikhmin::gFactorIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+        unsigned /*fdim*/, double *fval)
 {
     GFactorIntegrandData *data =
-            reinterpret_cast<GFactorIntegrandData*>(userdata);
-    float phi = xx[0] * 2*M_PI,
-          theta = xx[1] * M_PI;
+            reinterpret_cast<GFactorIntegrandData*>(fdata);
+    const float phi = x[0], theta = x[1];
 
     // Find H in the space defined by V
-    float costheta = cosf(theta), 
+    const float costheta = cosf(theta),
           sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
@@ -356,8 +368,7 @@ Ashikhmin::gFactorIntegrand(const int *ndim, const double xx[],
     // Find H in the space defined by N
     Vector H_N = data->nToV(H);
 
-    ff[0] = VdotH * data->distribution->D(H_N) * sintheta;
-    ff[0] *= M_PI * (2*M_PI);
+    fval[0] = VdotH * data->distribution->D(H_N) * sintheta;
 
     return 0;
 }

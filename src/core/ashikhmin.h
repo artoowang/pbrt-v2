@@ -107,10 +107,10 @@ private:
     float averageNH(void) const;
     float gFactor(const Vector &v) const;
 
-    static int averageNHIntegrand(const int *ndim, const double xx[],
-            const int *ncomp, double ff[], void *userdata);
-    static int gFactorIntegrand(const int *ndim, const double xx[],
-                const int *ncomp, double ff[], void *userdata);
+    static int averageNHIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+            unsigned /*fdim*/, double *fval);
+    static int gFactorIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+            unsigned /*fdim*/, double *fval);
 
     Spectrum R;
     MicrofacetDistribution *mDistribution;

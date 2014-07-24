@@ -25,7 +25,7 @@ core_src = [ 'core/api.cpp',           'core/camera.cpp',         'core/diffgeom
              'core/spectrum.cpp',      'core/targa.c',
              'core/texture.cpp',       'core/timer.cpp', 
              'core/transform.cpp',     'core/volume.cpp',
-             'core/ashikhmin.cpp' ]
+             'core/ashikhmin.cpp',     'cubature-1.0/pcubature.c','cubature-1.0/hcubature.c' ]
 
 parser_flex = env.CXXFile('core/pbrtlex.ll')
 parser_bison = env.CXXFile('core/pbrtparse.yy')
