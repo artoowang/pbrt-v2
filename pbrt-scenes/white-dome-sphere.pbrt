@@ -1,6 +1,7 @@
 LookAt 0 -2.897 0   0 0 0   0 0 1
 Camera "perspective" "float fov" [45]
 Film "image"  "integer xresolution" [512] "integer yresolution" [512]
+#Film "image"  "integer xresolution" [256] "integer yresolution" [256]
     "string filename" "white-dome-sphere.exr"
 
 Sampler "lowdiscrepancy" "integer pixelsamples" [4]

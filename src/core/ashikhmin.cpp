@@ -42,6 +42,7 @@
 using std::stringstream;
 
 const double sCubatureRelError = 1e-4;
+const bool sPrintGGrid = true;
 
 BlinnForAshikhmin::BlinnForAshikhmin(float e)
 {
@@ -120,7 +121,10 @@ AshikhminCache::AshikhminCache(const MicrofacetDistribution &distribution) :
 
     // Initialize grid of factor g
     // TODO: currently using 32x32
-    const int thetaRes = 32, phiRes = 32;
+    // TODO: weird, we get some artifact at 32x32. 16x16 actually works fine.
+    //       this definitely related to sampling, but can't tell if it's related to
+    //       MIPMap
+    const int thetaRes = 16, phiRes = 16;
     initGGrid(thetaRes, phiRes, distribution);
 }
 
@@ -155,11 +159,32 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution
 
             Vector v = SphericalDirection(sintheta, costheta, phi);
             gGrid[y*thetaRes + x] = Ashikhmin::computeGFactor(v, distribution);
+            //gGrid[y*thetaRes + x] = std::max(1.f-2*s, 0.f); // TODO
         }
     }
 
     mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid, false, 8.f, TEXTURE_CLAMP);
     delete [] gGrid;
+
+    // Print g grid
+    if (sPrintGGrid) {
+        const int res = 50;
+        fprintf(stderr, "g grid:\n");
+        for (int x = 0; x < res; ++x) {
+            const float s = (x + 0.5f) / res,
+                        theta = M_PI * s,
+                        costheta = cosf(theta),
+                        sintheta = sinf(theta);
+            for (int y = 0; y < res; ++y) {
+                const float t = (y + 0.5f) / phiRes,
+                            phi = 2.f * M_PI * t;
+
+                Vector v = SphericalDirection(sintheta, costheta, phi);
+                fprintf(stderr, " %.5ef", gFactor(v));
+            }
+            fprintf(stderr, "\n");
+        }
+    }
 }
 
 float
@@ -236,11 +261,11 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
     float avgNH = averageNH();
-    float g_wi = gFactor(wi), g_wo = gFactor(wo);
-    // TODO: remove
-    //fprintf(stderr, "%f %f %f\n", avgNH, g_wi, g_wo);
-    //float avgNH = 1;
-    //float g_wi = 1, g_wo = 1;
+    float g_wi = gFactor(wi),
+          g_wo = gFactor(wo);
+    //float rgb[] = {SphericalTheta(wo)*INV_PI, SphericalPhi(wo)*INV_TWOPI, 0.f};
+    //return RGBSpectrum::FromRGB(rgb) * INV_TWOPI;  // TODO: test
+    //return g_wo * INV_TWOPI;
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * mDistribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
@@ -269,6 +294,9 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
 float
 Ashikhmin::averageNH(void) const
 {
+    // TODO: test
+    //return 1.f;
+    //return computeAverageNH(*mDistribution);
     return mCache.averageNH();
 }
 
@@ -277,7 +305,7 @@ Ashikhmin::computeAverageNH(const MicrofacetDistribution &distribution)
 {
     // First dimension is phi, second theta
     const double xmin[2] = {0, 0},
-                 xmax[2] = {2*M_PI, M_PI};
+                 xmax[2] = {2.f*M_PI, 0.5f*M_PI};
     double val = 0.f, error = 0.f;
     int ret = hcubature(1, averageNHIntegrand, (void*)&distribution,
             2, xmin, xmax,
@@ -317,6 +345,9 @@ Ashikhmin::averageNHIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
 float
 Ashikhmin::gFactor(const Vector &v) const
 {
+    // TODO: test
+    //return 1.f;
+    //return computeGFactor(v, *mDistribution);
     return mCache.gFactor(v);
 }
 
@@ -331,7 +362,7 @@ Ashikhmin::computeGFactor(const Vector &v, const MicrofacetDistribution &distrib
 
     // First dimension is phi, second theta
     const double xmin[2] = {0, 0},
-                 xmax[2] = {2*M_PI, M_PI};
+                 xmax[2] = {2.f*M_PI, 0.5f*M_PI};
     double val = 0.f, error = 0.f;
     int ret = hcubature(1, gFactorIntegrand, (void*)&data,
             2, xmin, xmax,
