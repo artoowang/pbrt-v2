@@ -43,14 +43,29 @@
 
 using std::map;
 
+class AshikhminDistribution {
+public:
+    // TODO: testing gridResolution
+    AshikhminDistribution(int gridResolution) : mGridResolution(gridResolution)
+    { }
+    virtual ~AshikhminDistribution() { }
+    virtual float D(const Vector &wh) const = 0;
+    virtual void Sample_f(const Vector &wo, Vector *wi,
+                          float u1, float u2, float *pdf) const = 0;
+    virtual float Pdf(const Vector &wo, const Vector &wi) const = 0;
+    virtual string signature(void) const { return ""; }
+
+    int mGridResolution;
+};
+
 // D is normalized for hemisphere (instead of the projected hemisphere as in Blinn)
 // I.e., Integrate[D(wh), {wh in hemisphere}] = 1
 // Currently Sample_f() and Pdf() implementation is the same as Blinn
 // I think Pdf() is against wi instead of wh, but still need to confirm that
-class BlinnForAshikhmin : public MicrofacetDistribution
+class BlinnForAshikhmin : public AshikhminDistribution
 {
 public:
-    BlinnForAshikhmin(float e);
+    BlinnForAshikhmin(float e, int gridResolution);
     float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
@@ -69,35 +84,43 @@ public:
     float gFactor(const Vector &v) const;
     float averageNH(void) const;
 
-    static const AshikhminCache& get(const MicrofacetDistribution &distribution);
+    static const AshikhminCache& get(const AshikhminDistribution &distribution);
 
 protected:
     float mAvgNH;
     MIPMap<float> *mGFactorGrid;
 
-    // A filled cache is only created by static member function
-    AshikhminCache(const MicrofacetDistribution &distribution);
+    int mThetaRes, mPhiRes;
+    vector<float> mGFactorGrid2;
 
-    void initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution &distribution);
+    // A filled cache is only created by static member function
+    AshikhminCache(const AshikhminDistribution &distribution);
+
+    void initGGrid(int thetaRes, int phiRes, const AshikhminDistribution &distribution);
 
     typedef map<string, AshikhminCache*> AshikhminCacheMap;
     static AshikhminCacheMap sCache;
     static boost::mutex sMutex;
+
+private:
+    // This class does not allow copy
+    AshikhminCache(const AshikhminCache&);
+    AshikhminCache& operator=(const AshikhminCache&);
 };
 
 class Ashikhmin : public BxDF
 {
 public:
     Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-        MicrofacetDistribution *d);
+            AshikhminDistribution *d);
     Spectrum f(const Vector &wo, const Vector &wi) const;
     Spectrum Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
 
     // Utility functions
-    static float computeGFactor(const Vector &v, const MicrofacetDistribution &distribution);
-    static float computeAverageNH(const MicrofacetDistribution &distribution);
+    static float computeGFactor(const Vector &v, const AshikhminDistribution &distribution);
+    static float computeAverageNH(const AshikhminDistribution &distribution);
 
     // For tests
     static void testSphVectorTransform(void);
@@ -113,12 +136,15 @@ private:
             unsigned /*fdim*/, double *fval);
 
     Spectrum R;
-    MicrofacetDistribution *mDistribution;
+    AshikhminDistribution *mDistribution;
     Fresnel *fresnel;
-    AshikhminCache mCache;
+    // Note: this needs to be reference, because if it's an object, it's destructor might not be called
+    //       upon destruction if this object (Ashikhmin) is allocated by BSDF_ALLOC() (Need confirm)
+    //       To avoid confusion, I have set its copy constructor to private
+    const AshikhminCache &mCache;
 
     struct GFactorIntegrandData {
-        const MicrofacetDistribution *distribution;
+        const AshikhminDistribution *distribution;
         Transform nToV;
     };
 };

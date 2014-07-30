@@ -44,7 +44,8 @@ using std::stringstream;
 const double sCubatureRelError = 1e-4;
 const bool sPrintGGrid = true;
 
-BlinnForAshikhmin::BlinnForAshikhmin(float e)
+BlinnForAshikhmin::BlinnForAshikhmin(float e, int gridResolution) :
+        AshikhminDistribution(gridResolution)
 {
     if (e > 10000.f || isnan(e)) {
         e = 10000.f;
@@ -113,7 +114,7 @@ AshikhminCache::AshikhminCache() :
 {
 }
 
-AshikhminCache::AshikhminCache(const MicrofacetDistribution &distribution) :
+AshikhminCache::AshikhminCache(const AshikhminDistribution &distribution) :
         mAvgNH(Ashikhmin::computeAverageNH(distribution)), mGFactorGrid(NULL)
 {
     // TODO: test
@@ -124,7 +125,8 @@ AshikhminCache::AshikhminCache(const MicrofacetDistribution &distribution) :
     // TODO: weird, we get some artifact at 32x32. 16x16 actually works fine.
     //       this definitely related to sampling, but can't tell if it's related to
     //       MIPMap
-    const int thetaRes = 16, phiRes = 16;
+    int thetaRes, phiRes;
+    thetaRes = phiRes = distribution.mGridResolution;   // TODO: test
     initGGrid(thetaRes, phiRes, distribution);
 }
 
@@ -137,11 +139,9 @@ AshikhminCache::~AshikhminCache()
 }
 
 void
-AshikhminCache::initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution &distribution)
+AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution &distribution)
 {
-    float *gGrid = new float[thetaRes * phiRes];
-
-    Assert(gGrid != NULL);  // TODO: error handling
+    vector<float> gGrid(thetaRes * phiRes);
 
     // The center of the upper-left pixel (x,y) = (0,0) is mapped to
     // (s,t) = (0,0)+half_pixel_size, while the lower-right pixel (x,y) = (width-1,height-1)
@@ -163,8 +163,11 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const MicrofacetDistribution
         }
     }
 
-    mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid, false, 8.f, TEXTURE_CLAMP);
-    delete [] gGrid;
+    mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
+
+    mThetaRes = thetaRes;
+    mPhiRes = phiRes;
+    mGFactorGrid2 = gGrid;
 
     // Print g grid
     if (sPrintGGrid) {
@@ -195,7 +198,24 @@ AshikhminCache::gFactor(const Vector &v) const
                 s = theta * INV_PI,
                 phi = SphericalPhi(v),
                 t = phi * INV_TWOPI;
-    return mGFactorGrid->Lookup(s, t);
+    //return mGFactorGrid->Lookup(s, t);
+
+    float x = s*mThetaRes - 0.5f,
+          y = t*mPhiRes - 0.5f;
+    int x1 = (int)x,
+        y1 = (int)y,
+        x2 = x1 + 1,
+        y2 = y1 + 1;
+    float dx = x - x1,
+          dy = y - y1;
+    x1 = std::max(0, x1);
+    y1 = std::max(0, y1);
+    x2 = std::min(mThetaRes-1, x2);
+    y2 = std::min(mPhiRes-1, y2);
+    return (1-dx) * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x1]
+         + dx     * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x2]
+         + (1-dx) * dy     * mGFactorGrid2[mThetaRes*y2 + x1]
+         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];
 }
 
 float
@@ -205,7 +225,7 @@ AshikhminCache::averageNH(void) const
 }
 
 const AshikhminCache&
-AshikhminCache::get(const MicrofacetDistribution &distribution)
+AshikhminCache::get(const AshikhminDistribution &distribution)
 {
     boost::mutex::scoped_lock scopedLock(sMutex);
     AshikhminCacheMap::const_iterator it;
@@ -228,7 +248,7 @@ AshikhminCache::get(const MicrofacetDistribution &distribution)
 
 
 Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-                       MicrofacetDistribution *d)   // TODO: use reference
+                       AshikhminDistribution *d)   // TODO: use reference
     : BxDF(BxDFType(BSDF_REFLECTION | BSDF_GLOSSY)),
      R(reflectance), mDistribution(d), fresnel(f),
      mCache(AshikhminCache::get(*d))
@@ -301,7 +321,7 @@ Ashikhmin::averageNH(void) const
 }
 
 float
-Ashikhmin::computeAverageNH(const MicrofacetDistribution &distribution)
+Ashikhmin::computeAverageNH(const AshikhminDistribution &distribution)
 {
     // First dimension is phi, second theta
     const double xmin[2] = {0, 0},
@@ -328,8 +348,8 @@ int
 Ashikhmin::averageNHIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
         unsigned /*fdim*/, double *fval)
 {
-    const MicrofacetDistribution *distribution =
-                reinterpret_cast<const MicrofacetDistribution*>(fdata);
+    const AshikhminDistribution *distribution =
+                reinterpret_cast<const AshikhminDistribution*>(fdata);
     const float phi = x[0], theta = x[1];
     const float costheta = cosf(theta), 
                 sintheta = sinf(theta);
@@ -352,7 +372,7 @@ Ashikhmin::gFactor(const Vector &v) const
 }
 
 float
-Ashikhmin::computeGFactor(const Vector &v, const MicrofacetDistribution &distribution)
+Ashikhmin::computeGFactor(const Vector &v, const AshikhminDistribution &distribution)
 {
     Quaternion q(Vector(0, 0, 1), v);
     GFactorIntegrandData data;
@@ -441,7 +461,7 @@ Ashikhmin::testAverageNHAndFactor_g(void)
     const float BlinnExponent = 100.f;
     const Vector N(0, 0, 1), V45(1/sqrtf(2), 0, 1/sqrtf(2));
 
-    BlinnForAshikhmin distribution(BlinnExponent);
+    BlinnForAshikhmin distribution(BlinnExponent, 32);
     float avgNH = Ashikhmin::computeAverageNH(distribution);
     float gFactorForN = Ashikhmin::computeGFactor(N, distribution),
           gFactorFor45deg = Ashikhmin::computeGFactor(V45, distribution);

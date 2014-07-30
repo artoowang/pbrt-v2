@@ -56,7 +56,7 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
         Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.5f, 1.f);
         float rough = roughness->Evaluate(dgs);
         BxDF *spec = BSDF_ALLOC(arena, Ashikhmin)
-                       (ks, fresnel, BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough));
+                       (ks, fresnel, BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough, mGridResolution));
         bsdf->Add(spec);
     }
     return bsdf;
@@ -137,15 +137,17 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
         const TextureParams &mp)
 {
     // TODO: tests
-    Ashikhmin::testSphVectorTransform();
-    Ashikhmin::testAverageNHAndFactor_g();
-    Quaternion::unitTest();
+    //Ashikhmin::testSphVectorTransform();
+    //Ashikhmin::testAverageNHAndFactor_g();
+    //Quaternion::unitTest();
     //AshikhminMaterial::testMIPMap();
 
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
     Reference<Texture<float> > bumpMap = mp.GetFloatTextureOrNull("bumpmap");
-    return new AshikhminMaterial(Ks, roughness, bumpMap);
+    const int gridResolution = mp.FindInt("gridresolution", 32);
+
+    return new AshikhminMaterial(Ks, roughness, bumpMap, gridResolution);
 }
 
 

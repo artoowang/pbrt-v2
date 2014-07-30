@@ -391,7 +391,6 @@ public:
     virtual void Sample_f(const Vector &wo, Vector *wi,
                           float u1, float u2, float *pdf) const = 0;
     virtual float Pdf(const Vector &wo, const Vector &wi) const = 0;
-    virtual string signature(void) const { return ""; }
 };
 
 
