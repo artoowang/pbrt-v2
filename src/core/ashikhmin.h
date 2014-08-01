@@ -145,7 +145,7 @@ private:
 
     struct GFactorIntegrandData {
         const AshikhminDistribution *distribution;
-        Transform nToV;
+        Vector v;
     };
 };
 

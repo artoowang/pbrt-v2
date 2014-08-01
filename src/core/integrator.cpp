@@ -113,7 +113,7 @@ Spectrum UniformSampleOneLight(const Scene *scene,
                        bsdfSample, BxDFType(BSDF_ALL & ~BSDF_SPECULAR));
 }
 
-
+// Note: all Normals, Vectors are in the world space
 Spectrum EstimateDirect(const Scene *scene, const Renderer *renderer,
         MemoryArena &arena, const Light *light, const Point &p,
         const Normal &n, const Vector &wo, float rayEpsilon, float time,

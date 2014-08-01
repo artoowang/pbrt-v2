@@ -138,7 +138,7 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
 {
     // TODO: tests
     //Ashikhmin::testSphVectorTransform();
-    //Ashikhmin::testAverageNHAndFactor_g();
+    Ashikhmin::testAverageNHAndFactor_g();
     //Quaternion::unitTest();
     //AshikhminMaterial::testMIPMap();
 

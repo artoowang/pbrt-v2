@@ -42,7 +42,9 @@
 using std::stringstream;
 
 const double sCubatureRelError = 1e-4;
+const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
 const bool sPrintGGrid = true;
+const bool sUseUniformSampling = false;
 
 BlinnForAshikhmin::BlinnForAshikhmin(float e, int gridResolution) :
         AshikhminDistribution(gridResolution)
@@ -57,7 +59,7 @@ float
 BlinnForAshikhmin::D(const Vector &wh) const
 {
     // Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
-    float costhetah = max(CosTheta(wh), 0.f);    // TODO: Interesting, this breaks PBRT. Why?
+    float costhetah = max(CosTheta(wh), 0.f);
     return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
 }
 
@@ -153,6 +155,8 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
                     theta = M_PI * s,
                     costheta = cosf(theta),
                     sintheta = sinf(theta);
+        // TODO: test
+        //fprintf(stderr, "theta = %f (%d/%d)\n", theta, x+1, thetaRes);
         for (int y = 0; y < phiRes; ++y) {
             const float t = (y + 0.5f) / phiRes,
                         phi = 2.f * M_PI * t;
@@ -163,7 +167,8 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
         }
     }
 
-    mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
+    // TODO: test
+    //mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
 
     mThetaRes = thetaRes;
     mPhiRes = phiRes;
@@ -193,7 +198,7 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
 float
 AshikhminCache::gFactor(const Vector &v) const
 {
-    Assert(mGFactorGrid != NULL);
+    //Assert(mGFactorGrid != NULL);
     const float theta = SphericalTheta(v),
                 s = theta * INV_PI,
                 phi = SphericalPhi(v),
@@ -283,9 +288,27 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     float avgNH = averageNH();
     float g_wi = gFactor(wi),
           g_wo = gFactor(wo);
+
+    // TODO: show direct values:
+    //       To show direct values without sampling, use a point light with white light,
+    //       which the rendering equation becomes
+    //         Ld += f * AbsDot(wi, n);  // See EstimateDirect() in integrator.cpp
+    //       Note the wi and n is in world space; without bump mapping, in tangent space it should be wi.z
+    //Spectrum ret;
     //float rgb[] = {SphericalTheta(wo)*INV_PI, SphericalPhi(wo)*INV_TWOPI, 0.f};
-    //return RGBSpectrum::FromRGB(rgb) * INV_TWOPI;  // TODO: test
-    //return g_wo * INV_TWOPI;
+    //float rgb[] = {0.5f*(wo.x+1), 0.5f*(wo.y+1), 0.5f*(wo.z+1)};
+    //ret = RGBSpectrum::FromRGB(rgb);
+    //ret = g_wo;
+    //ret = computeGFactor(wo, *mDistribution);
+    /*Quaternion q(Vector(0, 0, 1), wo);
+    Transform t = q.ToTransform();
+    Vector v = t(Vector(0, 0, -1));
+    float rgb[] = {0.5f*(v.x+1), 0.5f*(v.y+1), 0.5f*(v.z+1)};
+    ret = RGBSpectrum::FromRGB(rgb);*/
+
+    //ret /= wi.z;
+    //return ret;
+
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * mDistribution->D(wh) * avgNH * F /
                (4.f * g_wi * g_wo);
@@ -295,20 +318,30 @@ Spectrum
 Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const 
 {
-    mDistribution->Sample_f(wo, wi, u1, u2, pdf);
-    if (!SameHemisphere(wo, *wi)) {
-        return Spectrum(0.f);
+    if (sUseUniformSampling) {
+        return BxDF::Sample_f(wo, wi, u1, u2, pdf);
+
+    } else {
+        mDistribution->Sample_f(wo, wi, u1, u2, pdf);
+        if (!SameHemisphere(wo, *wi)) {
+            return Spectrum(0.f);
+        }
+        return f(wo, *wi);
     }
-    return f(wo, *wi);
 }
 
 float
 Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const 
 {
-    if (!SameHemisphere(wo, wi)) {
-        return 0.f;
+    if (sUseUniformSampling) {
+        return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
+
+    } else {
+        if (!SameHemisphere(wo, wi)) {
+            return 0.f;
+        }
+        return mDistribution->Pdf(wo, wi);
     }
-    return mDistribution->Pdf(wo, wi);
 }
 
 float
@@ -374,28 +407,27 @@ Ashikhmin::gFactor(const Vector &v) const
 float
 Ashikhmin::computeGFactor(const Vector &v, const AshikhminDistribution &distribution)
 {
-    Quaternion q(Vector(0, 0, 1), v);
     GFactorIntegrandData data;
-
     data.distribution = &distribution;
-    data.nToV = q.ToTransform();
+    data.v = v;
 
     // First dimension is phi, second theta
+    // Note we now using method 2 in gFactorIntegrand(), so we integrate over the whole sphere
     const double xmin[2] = {0, 0},
-                 xmax[2] = {2.f*M_PI, 0.5f*M_PI};
+                 xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
     int ret = hcubature(1, gFactorIntegrand, (void*)&data,
             2, xmin, xmax,
-            0, 0, sCubatureRelError,
+            0, sCubatureAbsError, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
 
     Assert(ret == 0);
 
+    //val = error;    // TODO: test
+
     // TODO: test
-    //printf("CUHRE RESULT:\tnregions %d\tneval %d\tfail %d\n",
-    //            nregions, neval, fail);
-    //printf("CUHRE RESULT:\t%.8f +- %.8f\tp = %.3f\n",
-    //            integral[0], error[0], prob[0]);
+    //fprintf(stderr, "hcubature result (%d): %.8f +- %.8f\n",
+    //        ret, val, error);
 
     return val;
 }
@@ -411,15 +443,41 @@ Ashikhmin::gFactorIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
 
     // Find H in the space defined by V
     const float costheta = cosf(theta),
-          sintheta = sinf(theta);
+                sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
-    float VdotH = costheta;
+
+    // TODO: test
+    // Method 1: treat the H as a vector in the reference frame determined by v
+    //           so dot(v,H) = costheta, and we need to rotate v into the
+    //           reference frame determined by N(0, 0, 1) before calling D()
+    //           Note the integration domain is phi in [0,2*pi], theta in [0,pi/2]
+    /*float VdotH = costheta;
 
     // Find H in the space defined by N
     Vector H_N = data->nToV(H);
 
-    fval[0] = VdotH * data->distribution->D(H_N) * sintheta;
+    fval[0] = VdotH * data->distribution->D(H_N) * sintheta;*/
+
+    // Method 2: alternatively, we can integrate over the whole sphere, and multiply
+    //           an indicator function I(H) into the integrand:
+    //             I(H) = 1 if dot(v,H) > 0
+    //                    0 otherwise
+    //           Note the H is now in the reference frame determined by N(0,0,1),
+    //           so we need to really compute dot(v,H). The D() can now be evaluated
+    //           directly against H. Notice the sintheta is unchanged, since it's only
+    //           related to the parameterization, not the reference frame we used
+    //           Note the integration domain is phi in [0,2*pi], theta in [0,pi]
+    const float VdotH = Dot(data->v, H);
+    if (VdotH > 0) {
+        const float DofH = data->distribution->D(H);
+        fval[0] = VdotH * DofH * sintheta;
+    } else {
+        fval[0] = 0.f;
+    }
+
+    // TODO: test
+    //fprintf(stderr, "(%.2f, %.2f): %e\n", phi*INV_TWOPI, theta*INV_PI, fval[0]);
 
     return 0;
 }
@@ -460,8 +518,12 @@ Ashikhmin::testAverageNHAndFactor_g(void)
 {
     const float BlinnExponent = 100.f;
     const Vector N(0, 0, 1), V45(1/sqrtf(2), 0, 1/sqrtf(2));
+    // TODO: this is a wo direction where the first method in gFactorIntegrand() would fail
+    //       (i.e., return 0)
+    //const Vector VTest(-0.33629645195f, -0.62566874881f, 0.70387734241f);
 
     BlinnForAshikhmin distribution(BlinnExponent, 32);
+
     float avgNH = Ashikhmin::computeAverageNH(distribution);
     float gFactorForN = Ashikhmin::computeGFactor(N, distribution),
           gFactorFor45deg = Ashikhmin::computeGFactor(V45, distribution);
