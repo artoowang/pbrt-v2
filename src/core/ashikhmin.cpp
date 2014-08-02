@@ -37,13 +37,12 @@
 
 // For numerical integration
 #include "cubature-1.0/cubature.h"
-#include "cuba.h"
 
 using std::stringstream;
 
 const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
-const bool sPrintGGrid = true;
+const bool sPrintGGrid = false;
 const bool sUseUniformSampling = false;
 
 BlinnForAshikhmin::BlinnForAshikhmin(float e, int gridResolution) :
@@ -140,7 +139,7 @@ InterpolatedGrid::eval(float x, float y) const
     // Transform x, y into pixel coordinate system:
     //   the upper-left samples is at (0, 0), lower-right is at
     //   (mWidth-1, mHeight-1), and the upper-left corner
-    x = (x - mX1) / (mX2 - mX1) * mWidth - 0.5f;
+    /*x = (x - mX1) / (mX2 - mX1) * mWidth - 0.5f;
     y = (y - mY1) / (mY2 - mY1) * mHeight - 0.5f;
     int x1 = (int)x,
         y1 = (int)y,
@@ -155,7 +154,8 @@ InterpolatedGrid::eval(float x, float y) const
     return (1-dx) * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x1]
          + dx     * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x2]
          + (1-dx) * dy     * mGFactorGrid2[mThetaRes*y2 + x1]
-         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];
+         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];*/
+    return 0.f;
 }
 
 

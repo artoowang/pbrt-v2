@@ -37,7 +37,6 @@
 #include "paramset.h"
 #include "texture.h"
 
-#include "cuba.h"
 #include "mipmap.h"
 
 // PlasticMaterial Method Definitions

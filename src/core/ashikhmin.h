@@ -37,11 +37,18 @@
 #define PBRT_CORE_ASHIKHMIN_H
 
 #include <map>
-#include <boost/thread/mutex.hpp>
+
 #include "reflection.h"
-#include "montecarlo.h"
+#include "montecarlo.h" // For Distribution1D
 // TODO: remove this - not necessay anymore
 //#include "mipmap.h"
+
+// Boost
+#include <boost/thread/mutex.hpp>
+// In OSX, I need to use boost::math::isnan because PBRT's code can't find isnan once I include mutex.hpp
+// TODO: not sure if this works on other platform
+#include <boost/math/special_functions/fpclassify.hpp>
+using boost::math::isnan;
 
 using std::map;
 
