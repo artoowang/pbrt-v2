@@ -42,6 +42,7 @@ using std::stringstream;
 
 const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
+const float sSmallValue = 1e-6f;
 const bool sPrintGGrid = false;
 const bool sUseUniformSampling = false;
 
@@ -358,7 +359,7 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
 
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
     return R * mDistribution->D(wh) * avgNH * F /
-               (4.f * g_wi * g_wo);
+               (4.f * max(g_wi * g_wo, sSmallValue));
 }
 
 Spectrum
