@@ -114,6 +114,8 @@ InterpolatedGrid::InterpolatedGrid() :
 {
 }
 
+// samples is assumed to be formatted in row-major order
+// i.e., samples[x][y] = samples[y*width+x]
 bool
 InterpolatedGrid::init(float x1, float x2, int width,
         float y1, float y2, int height,
@@ -123,7 +125,7 @@ InterpolatedGrid::init(float x1, float x2, int width,
         return false;
     }
 
-    if (samples.size() < width * height) {
+    if (samples.size() < static_cast<vector<float>::size_type>(width * height)) {
         return false;
     }
 
@@ -134,13 +136,17 @@ InterpolatedGrid::init(float x1, float x2, int width,
     return true;
 }
 
+// (x, y) is in the coordinates defined by [mX1, mX2] x [mY1, mY2]
 float
 InterpolatedGrid::eval(float x, float y) const
 {
+    Assert(mWidth > 0 && mHeight > 0);
+
     // Transform x, y into pixel coordinate system:
     //   the upper-left samples is at (0, 0), lower-right is at
-    //   (mWidth-1, mHeight-1), and the upper-left corner
-    /*x = (x - mX1) / (mX2 - mX1) * mWidth - 0.5f;
+    //   (mWidth-1, mHeight-1), and the upper-left corner is
+    //   (-0.5, -0.5), the lower-right corner (mWidth-0.5, mHeight-0.5)
+    x = (x - mX1) / (mX2 - mX1) * mWidth - 0.5f;
     y = (y - mY1) / (mY2 - mY1) * mHeight - 0.5f;
     int x1 = (int)x,
         y1 = (int)y,
@@ -150,13 +156,12 @@ InterpolatedGrid::eval(float x, float y) const
           dy = y - y1;
     x1 = std::max(0, x1);
     y1 = std::max(0, y1);
-    x2 = std::min(mThetaRes-1, x2);
-    y2 = std::min(mPhiRes-1, y2);
-    return (1-dx) * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x1]
-         + dx     * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x2]
-         + (1-dx) * dy     * mGFactorGrid2[mThetaRes*y2 + x1]
-         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];*/
-    return 0.f;
+    x2 = std::min(mWidth-1, x2);
+    y2 = std::min(mHeight-1, y2);
+    return (1-dx) * (1-dy) * mSamples[mWidth*y1 + x1]
+         + dx     * (1-dy) * mSamples[mWidth*y1 + x2]
+         + (1-dx) * dy     * mSamples[mWidth*y2 + x1]
+         + dx     * dy     * mSamples[mWidth*y2 + x2];
 }
 
 
@@ -218,11 +223,13 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
     // TODO: test
     //mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
 
+    mGFactorGrid.init()
     mThetaRes = thetaRes;
     mPhiRes = phiRes;
     mGFactorGrid2 = gGrid;
 
-    // Print g grid
+    // TODO: implement in InterpolatedGrid?
+    /*// Print g grid
     if (sPrintGGrid) {
         const int res = 50;
         fprintf(stderr, "g grid:\n");
@@ -240,7 +247,7 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
             }
             fprintf(stderr, "\n");
         }
-    }
+    }*/
 }
 
 float

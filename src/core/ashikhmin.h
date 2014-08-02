@@ -131,9 +131,7 @@ public:
 protected:
     float mAvgNH;
     //MIPMap<float> *mGFactorGrid;
-
-    int mThetaRes, mPhiRes;
-    vector<float> mGFactorGrid2;
+    InterpolatedGrid mGFactorGrid;
 
     // A filled cache is only created by static member function
     AshikhminCache(const AshikhminDistribution &distribution);
