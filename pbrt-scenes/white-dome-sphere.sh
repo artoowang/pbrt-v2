@@ -33,7 +33,7 @@ fi
 echo >&2 "Write to ${OUTPUT_DIR}/${TIF_FILE}"
 
 pbrt "$PBRT_FILE"
-exrtotiff -gamma 1 "$EXR_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
+exrtotiff -gamma 2.2 "$EXR_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
 exrdisplay "$EXR_FILE" &
 "$DISPLAY_CMD" "${OUTPUT_DIR}/${TIF_FILE}" &
 

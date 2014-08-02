@@ -23,6 +23,8 @@ AttributeBegin
   LightSource 
     "infinite" "integer nsamples" [4]
   	           "string mapname" "textures/white.exr"
+    #"infinite" "integer nsamples" [4]
+  	#           "string mapname" "textures/uffizi_latlong.exr"
   	#"distant" "point from" [0 -1 0]
     #          "point to" [0 0 0] 
 AttributeEnd
@@ -33,8 +35,8 @@ AttributeBegin
   #Material "plastic" "color Kd" [0 0 0] 
   #                   "color Ks" [1 1 1]
   #                   "float roughness" [.008]
-  Material "ashikhmin" "color Ks" [.5 .5 .5]
-                       "float roughness" [.008]
+  Material "ashikhmin" "color Ks" [1 1 1]
+                       "float roughness" [.001]
                        "integer gridresolution" [32]    # __ASHIKHMIN_GRID_RESOLUTION__
   #Material "matte" "color Kd" [1 1 1]
   #Material "clay"

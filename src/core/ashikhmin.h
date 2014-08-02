@@ -39,7 +39,9 @@
 #include <map>
 #include <boost/thread/mutex.hpp>
 #include "reflection.h"
-#include "mipmap.h"
+#include "montecarlo.h"
+// TODO: remove this - not necessay anymore
+//#include "mipmap.h"
 
 using std::map;
 
@@ -66,13 +68,46 @@ class BlinnForAshikhmin : public AshikhminDistribution
 {
 public:
     BlinnForAshikhmin(float e, int gridResolution);
-    float D(const Vector &wh) const;
+    virtual float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
     virtual string signature(void) const;
 
 private:
     float exponent;
+};
+
+class TabulatedDistribution : public AshikhminDistribution
+{
+public:
+    TabulatedDistribution(const AshikhminDistribution& srcDistribution);    // TODO
+    virtual ~TabulatedDistribution();
+    virtual float D(const Vector &wh) const;
+    virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
+    virtual float Pdf(const Vector &wi, const Vector &wo) const;
+    virtual string signature(void) const;
+
+private:
+    Distribution1D *mDistribution;
+
+    // Do not allow copy
+    TabulatedDistribution(const TabulatedDistribution&);
+    TabulatedDistribution& operator=(const TabulatedDistribution&);
+};
+
+class InterpolatedGrid
+{
+public:
+    InterpolatedGrid();
+
+    bool init(float x1, float x2, int width, float y1, float y2, int height,
+            const vector<float> &samples);
+    float eval(float x, float y) const;
+
+protected:
+    float mX1, mX2, mY1, mY2;
+    int mWidth, mHeight;
+    vector<float> mSamples;
 };
 
 class AshikhminCache
@@ -88,7 +123,7 @@ public:
 
 protected:
     float mAvgNH;
-    MIPMap<float> *mGFactorGrid;
+    //MIPMap<float> *mGFactorGrid;
 
     int mThetaRes, mPhiRes;
     vector<float> mGFactorGrid2;

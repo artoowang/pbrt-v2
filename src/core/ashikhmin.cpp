@@ -108,25 +108,72 @@ BlinnForAshikhmin::signature(void) const
 }
 
 
+InterpolatedGrid::InterpolatedGrid() :
+        mX1(0), mX2(0), mY1(0), mY2(0),
+        mWidth(-1), mHeight(-1)
+{
+}
+
+bool
+InterpolatedGrid::init(float x1, float x2, int width,
+        float y1, float y2, int height,
+        const vector<float> &samples)
+{
+    if (x2 < x1 || y2 < y1 || width <= 0 || height <= 0) {
+        return false;
+    }
+
+    if (samples.size() < width * height) {
+        return false;
+    }
+
+    mX1 = x1; mX2 = x2; mY1 = y1; mY2 = y2;
+    mWidth = width; mHeight = height;
+    mSamples.assign(samples.begin(), samples.begin() + mWidth*mHeight);
+
+    return true;
+}
+
+float
+InterpolatedGrid::eval(float x, float y) const
+{
+    // Transform x, y into pixel coordinate system:
+    //   the upper-left samples is at (0, 0), lower-right is at
+    //   (mWidth-1, mHeight-1), and the upper-left corner
+    x = (x - mX1) / (mX2 - mX1) * mWidth - 0.5f;
+    y = (y - mY1) / (mY2 - mY1) * mHeight - 0.5f;
+    int x1 = (int)x,
+        y1 = (int)y,
+        x2 = x1 + 1,
+        y2 = y1 + 1;
+    float dx = x - x1,
+          dy = y - y1;
+    x1 = std::max(0, x1);
+    y1 = std::max(0, y1);
+    x2 = std::min(mThetaRes-1, x2);
+    y2 = std::min(mPhiRes-1, y2);
+    return (1-dx) * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x1]
+         + dx     * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x2]
+         + (1-dx) * dy     * mGFactorGrid2[mThetaRes*y2 + x1]
+         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];
+}
+
+
 AshikhminCache::AshikhminCacheMap AshikhminCache::sCache;
 boost::mutex AshikhminCache::sMutex;
 
 AshikhminCache::AshikhminCache() :
-        mAvgNH(-1.f), mGFactorGrid(NULL)
+        mAvgNH(-1.f)//, mGFactorGrid(NULL)
 {
 }
 
 AshikhminCache::AshikhminCache(const AshikhminDistribution &distribution) :
-        mAvgNH(Ashikhmin::computeAverageNH(distribution)), mGFactorGrid(NULL)
+        mAvgNH(Ashikhmin::computeAverageNH(distribution))//, mGFactorGrid(NULL)
 {
     // TODO: test
     fprintf(stderr, "Cache for %s created.\n", distribution.signature().c_str());
 
     // Initialize grid of factor g
-    // TODO: currently using 32x32
-    // TODO: weird, we get some artifact at 32x32. 16x16 actually works fine.
-    //       this definitely related to sampling, but can't tell if it's related to
-    //       MIPMap
     int thetaRes, phiRes;
     thetaRes = phiRes = distribution.mGridResolution;   // TODO: test
     initGGrid(thetaRes, phiRes, distribution);
@@ -134,10 +181,10 @@ AshikhminCache::AshikhminCache(const AshikhminDistribution &distribution) :
 
 AshikhminCache::~AshikhminCache()
 {
-    if (mGFactorGrid != NULL) {
-        delete mGFactorGrid;
-        mGFactorGrid = NULL;
-    }
+    //if (mGFactorGrid != NULL) {
+    //    delete mGFactorGrid;
+    //    mGFactorGrid = NULL;
+    //}
 }
 
 void
