@@ -34,9 +34,12 @@
 #include "ashikhmin.h"
 
 #include <sstream>
+#include <openssl/md5.h>
 
 // For numerical integration
 #include "cubature-1.0/cubature.h"
+
+#include <boost/format.hpp>
 
 using std::stringstream;
 
@@ -141,6 +144,11 @@ BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
     // Compute PDF for $\wi$ from Blinn distribution
     float blinn_pdf = ((exponent + 1.f) * powf(costheta, exponent)) /
                       (2.f * M_PI * 4.f * Dot(wo, wh));
+    // Note: not sure why we don't check this earlier. We need to do this because
+    //       otherwise the PDF becomes negative. When dot(wo, wh) <= 0, it means
+    //       the angle between wo and wh is larger than 90 degree, and therefore
+    //       wi and wo won't be in the same hemisphere anyway. (For normal BRDFs,
+    //       this usually means the contribution is zero.)
     if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
     *pdf = blinn_pdf;
 }
@@ -208,12 +216,26 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
         }
     }
 
+    // The 1D distribution to select cells against a PDF in (theta, phi) domain
+    // TODO: one problem of using 1D domain is that we might lose the stratified
+    //       property of our random numbers
     if (mDistribution != NULL) {
         delete mDistribution;
     }
     mDistribution = new Distribution1D(pdf.data(), thetaRes * phiRes);
 
+    // The actual PDF of wh in sphere domain
     mData.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, data);
+
+    // Compute MD5 sum of the data (for signature)
+    unsigned char md5digest[MD5_DIGEST_LENGTH];
+    MD5(reinterpret_cast<unsigned char*>(data.data()), sizeof(float)*data.size(), md5digest);
+    // Hex digest
+    stringstream ss;
+    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
+        ss << boost::format("%02x") % (int)md5digest[i];
+    }
+    mMD5Signature = ss.str();
 }
 
 float
@@ -224,22 +246,82 @@ TabulatedDistribution::D(const Vector &wh) const
     return mData.eval(theta, phi);
 }
 
-// TODO: notice the pdf of Sample_f() and Pdf() is w.r.t wi, not wh
+// Notice the pdf of Sample_f() and Pdf() is w.r.t wi, not wh
+// TODO: unlike existing PBRT implementations, we assume the normal of the
+//       tangent frame is facing toward wo. (See Ashikhmin::f()). Therefore
+//       we DON'T reverse it when wh is at the opposite side of wo, like
+//       Blinn::Sample_f(); instead, we just check if Dot(wh, wo) < 0 - if it
+//       is negative, the viewer won't see the facet and the sample is invalid
 void
-TabulatedDistribution::Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const
+TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2, float *pdf) const
 {
+    // It seems we always call Sample_f() with a pdf, and we use it to
+    // determine if the sample is valid
+    Assert(pdf != NULL);
+
+    const int thetaRes = mData.getXResolution(),
+              phiRes = mData.getYResolution(),
+              index = mDistribution->SampleDiscrete(u1, NULL),
+              thetaIndex = index % thetaRes,
+              phiIndex = index / thetaRes;
+
+    // TODO: we should jitter the wi within the selected cell
+    const float theta = ((thetaIndex + 0.5f) / thetaRes) * M_PI,
+                phi = ((phiIndex + 0.5f) / phiRes) * 2.f * M_PI,
+                sinTheta = sinf(theta), cosTheta = cosf(theta);
+    const Vector wh = SphericalDirection(sinTheta, cosTheta, phi);
+    const float dotHO = Dot(wh, wo);
+    if (dotHO < 0) {
+        *pdf = 0.f;
+        return;
+    }
+
+    // Compute incident direction by reflecting about wh
+    *wi = -wo + 2.f * dotHO * wh;
+    *pdf = Pdf(wo, *wi);    // TODO: can be optimized
 }
 
 float
-TabulatedDistribution::Pdf(const Vector &wi, const Vector &wo) const
+TabulatedDistribution::Pdf(const Vector &wo, const Vector &wi) const
 {
-    return 0.f;
+    const Vector wh = Normalize(wo + wi);
+    const float dotHO = Dot(wh, wo);
+    if (dotHO > 0.f) {
+        return D(wh) / (4.f * dotHO);
+    } else {
+        // It should be very unlikely we are here, but let's check anyway
+        return 0.f;
+    }
 }
 
 string
 TabulatedDistribution::signature(void) const
 {
-    return "";
+    stringstream ss;
+    ss << "TabulatedDistribution:"
+            << mData.getXResolution() << "x" << mData.getYResolution() << ":"
+            << mMD5Signature;
+    return ss.str();
+}
+
+void
+TabulatedDistribution::test(void)
+{
+    fprintf(stderr, "Test Distribution1D:\n");
+    float f[] = {1, 2, 3, 4};
+    Distribution1D distribution(f, 4);
+    fprintf(stderr, "  SampleDiscrete:\n");
+    for (int i = 0; i < 10; ++i) {
+        float pdf = 0.f, u = i / 10.f;
+        int s = distribution.SampleDiscrete(u, &pdf);
+        fprintf(stderr, "    u = %.2f, select %d, pdf = %.2f\n", u, s, pdf);
+    }
+    fprintf(stderr, "  SampleContinuous:\n");
+    for (int i = 0; i < 10; ++i) {
+        float pdf = 0.f, u = i / 10.f;
+        float s = distribution.SampleContinuous(u, &pdf);
+        fprintf(stderr, "    u = %.2f, select %.2f, pdf = %.2f\n", u, s, pdf);
+    }
 }
 
 // ----------------------------------------------------------------------------

@@ -32,7 +32,9 @@ tiff_includes = [ ]
 tiff_libdir = [ ]
 Export('tiff_libs')
 
-env_libs = [ 'boost_system-mt' ]
+env_libs = [ 'boost_system-mt',  # For boost::math::isnan
+             'gnutls-openssl'    # For MD5
+           ]
 env_includes = [ os.environ['HOME'] + '/include' ]
 env_libdir = [ os.environ['HOME'] + '/lib', '/opt/local/lib' ]
 Export('env_libs')

@@ -96,8 +96,8 @@ class BlinnForAshikhmin : public AshikhminDistribution
 public:
     BlinnForAshikhmin(float e);
     virtual float D(const Vector &wh) const;
-    virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
-    virtual float Pdf(const Vector &wi, const Vector &wo) const;
+    virtual void Sample_f(const Vector &wo, Vector *wi, float u1, float u2, float *pdf) const;
+    virtual float Pdf(const Vector &wo, const Vector &wi) const;
     virtual string signature(void) const;
 
 private:
@@ -114,9 +114,13 @@ public:
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
     virtual string signature(void) const;
 
+    // TODO: for test
+    static void test(void);
+
 private:
     Distribution1D *mDistribution;
     InterpolatedGrid mData;
+    string mMD5Signature;
 
     void initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes);
 

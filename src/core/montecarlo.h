@@ -78,6 +78,8 @@ struct Distribution1D {
         delete[] func;
         delete[] cdf;
     }
+    // pdf: the PDF agains the domain [0, 1]
+    // Returns a float in [0,1)
     float SampleContinuous(float u, float *pdf, int *off = NULL) const {
         // Find surrounding CDF segments and _offset_
         float *ptr = std::upper_bound(cdf, cdf+count+1, u);
@@ -96,6 +98,8 @@ struct Distribution1D {
         // Return $x\in{}[0,1)$ corresponding to sample
         return (offset + du) / count;
     }
+    // pdf: this is actually the PMF, not PDF. The sum of the PMF of all possible choices is one
+    // Returns the index of the choice (0 ~ count-1)
     int SampleDiscrete(float u, float *pdf) const {
         // Find surrounding CDF segments and _offset_
         float *ptr = std::upper_bound(cdf, cdf+count+1, u);
