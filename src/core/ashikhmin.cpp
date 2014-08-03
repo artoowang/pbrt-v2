@@ -46,67 +46,7 @@ const float sSmallValue = 1e-6f;
 const bool sPrintGGrid = false;
 const bool sUseUniformSampling = false;
 
-BlinnForAshikhmin::BlinnForAshikhmin(float e, int gridResolution) :
-        AshikhminDistribution(gridResolution)
-{
-    if (e > 10000.f || isnan(e)) {
-        e = 10000.f;
-    }
-    exponent = e;
-}
-
-float
-BlinnForAshikhmin::D(const Vector &wh) const
-{
-    // Note: unlike class Blinn, we want to make sure there is no microfacet facing downward
-    float costhetah = max(CosTheta(wh), 0.f);
-    return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
-}
-
-// Currently BlinnForAshikhmin::Sample_f() and Pdf() is the same as Blinn
-void
-BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
-                     float *pdf) const
-{
-    // Compute sampled half-angle vector $\wh$ for Blinn distribution
-    float costheta = powf(u1, 1.f / (exponent+1));
-    float sintheta = sqrtf(max(0.f, 1.f - costheta*costheta));
-    float phi = u2 * 2.f * M_PI;
-    Vector wh = SphericalDirection(sintheta, costheta, phi);
-    if (!SameHemisphere(wo, wh)) wh = -wh;
-
-    // Compute incident direction by reflecting about $\wh$
-    *wi = -wo + 2.f * Dot(wo, wh) * wh;
-
-    // Compute PDF for $\wi$ from Blinn distribution
-    float blinn_pdf = ((exponent + 1.f) * powf(costheta, exponent)) /
-                      (2.f * M_PI * 4.f * Dot(wo, wh));
-    if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
-    *pdf = blinn_pdf;
-}
-
-float
-BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const
-{
-    Vector wh = Normalize(wo + wi);
-    float costheta = AbsCosTheta(wh);
-    // Compute PDF for $\wi$ from Blinn distribution
-    float blinn_pdf = ((exponent + 1.f) * powf(costheta, exponent)) /
-                      (2.f * M_PI * 4.f * Dot(wo, wh));
-    if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
-    return blinn_pdf;
-}
-
-string
-BlinnForAshikhmin::signature(void) const
-{
-    stringstream ss;
-    ss.precision(5);
-    ss << std::scientific;
-    ss << "BlinnForAshikhmin:" << exponent;
-    return ss.str();
-}
-
+// ----------------------------------------------------------------------------
 
 InterpolatedGrid::InterpolatedGrid() :
         mX1(0), mX2(0), mY1(0), mY2(0),
@@ -164,9 +104,149 @@ InterpolatedGrid::eval(float x, float y) const
          + dx     * dy     * mSamples[mWidth*y2 + x2];
 }
 
+// ----------------------------------------------------------------------------
+
+BlinnForAshikhmin::BlinnForAshikhmin(float e)
+{
+    if (e > 10000.f || isnan(e)) {
+        e = 10000.f;
+    }
+    exponent = e;
+}
+
+float
+BlinnForAshikhmin::D(const Vector &wh) const
+{
+    // Note: unlike class Blinn, we want to make sure there is no microfacet facing downward.
+    //       This makes Integrate[D(wh), {wh in sphere}] = 1
+    float costhetah = max(CosTheta(wh), 0.f);
+    return (exponent+1) * INV_TWOPI * powf(costhetah, exponent);
+}
+
+// Currently BlinnForAshikhmin::Sample_f() and Pdf() is the same as Blinn
+void
+BlinnForAshikhmin::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
+                     float *pdf) const
+{
+    // Compute sampled half-angle vector $\wh$ for Blinn distribution
+    float costheta = powf(u1, 1.f / (exponent+1));
+    float sintheta = sqrtf(max(0.f, 1.f - costheta*costheta));
+    float phi = u2 * 2.f * M_PI;
+    Vector wh = SphericalDirection(sintheta, costheta, phi);
+    if (!SameHemisphere(wo, wh)) wh = -wh;
+
+    // Compute incident direction by reflecting about $\wh$
+    *wi = -wo + 2.f * Dot(wo, wh) * wh;
+
+    // Compute PDF for $\wi$ from Blinn distribution
+    float blinn_pdf = ((exponent + 1.f) * powf(costheta, exponent)) /
+                      (2.f * M_PI * 4.f * Dot(wo, wh));
+    if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
+    *pdf = blinn_pdf;
+}
+
+float
+BlinnForAshikhmin::Pdf(const Vector &wo, const Vector &wi) const
+{
+    Vector wh = Normalize(wo + wi);
+    float costheta = AbsCosTheta(wh);
+    // Compute PDF for $\wi$ from Blinn distribution
+    float blinn_pdf = ((exponent + 1.f) * powf(costheta, exponent)) /
+                      (2.f * M_PI * 4.f * Dot(wo, wh));
+    if (Dot(wo, wh) <= 0.f) blinn_pdf = 0.f;
+    return blinn_pdf;
+}
+
+string
+BlinnForAshikhmin::signature(void) const
+{
+    stringstream ss;
+    ss.precision(5);
+    ss << std::scientific;
+    ss << "BlinnForAshikhmin:" << exponent;
+    return ss.str();
+}
+
+// ----------------------------------------------------------------------------
+
+TabulatedDistribution::TabulatedDistribution(const AshikhminDistribution& srcDistribution,
+                                             int thetaRes, int phiRes) :
+        mDistribution(NULL)
+{
+    initFromDistribution(srcDistribution, thetaRes, phiRes);
+}
+
+TabulatedDistribution::~TabulatedDistribution()
+{
+    if (mDistribution != NULL) {
+        delete mDistribution;
+    }
+}
+
+void
+TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
+{
+    // We parse through the source distribution by a thetaRes x phiRes grid,
+    // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
+    // - data: the PDF (against half vector wh over sphere) returned by srcDistribution.D()
+    // - pdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
+    //        D(h) * sin(theta). This is the value used to drive Distribution1D
+    vector<float> data(thetaRes * phiRes), pdf(thetaRes * phiRes);
+    for (int x = 0; x < thetaRes; ++x) {
+        const float s = (x + 0.5f) / thetaRes,
+                    theta = M_PI * s,
+                    costheta = cosf(theta),
+                    sintheta = sinf(theta);
+
+        for (int y = 0; y < phiRes; ++y) {
+            const float t = (y + 0.5f) / phiRes,
+                        phi = 2.f * M_PI * t;
+            const Vector &h = SphericalDirection(sintheta, costheta, phi);
+            const float D = srcDistribution.D(h);
+            data[y*thetaRes + x] = D;
+            pdf[y*thetaRes + x] = D * sintheta;
+        }
+    }
+
+    if (mDistribution != NULL) {
+        delete mDistribution;
+    }
+    mDistribution = new Distribution1D(pdf.data(), thetaRes * phiRes);
+
+    mData.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, data);
+}
+
+float
+TabulatedDistribution::D(const Vector &wh) const
+{
+    const float theta = SphericalTheta(wh),
+                phi = SphericalPhi(wh);
+    return mData.eval(theta, phi);
+}
+
+// TODO: notice the pdf of Sample_f() and Pdf() is w.r.t wi, not wh
+void
+TabulatedDistribution::Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const
+{
+}
+
+float
+TabulatedDistribution::Pdf(const Vector &wi, const Vector &wo) const
+{
+    return 0.f;
+}
+
+string
+TabulatedDistribution::signature(void) const
+{
+    return "";
+}
+
+// ----------------------------------------------------------------------------
 
 AshikhminCache::AshikhminCacheMap AshikhminCache::sCache;
 boost::mutex AshikhminCache::sMutex;
+int AshikhminCache::sGridResolution = 32;
 
 AshikhminCache::AshikhminCache() :
         mAvgNH(-1.f)//, mGFactorGrid(NULL)
@@ -181,7 +261,7 @@ AshikhminCache::AshikhminCache(const AshikhminDistribution &distribution) :
 
     // Initialize grid of factor g
     int thetaRes, phiRes;
-    thetaRes = phiRes = distribution.mGridResolution;   // TODO: test
+    thetaRes = phiRes = sGridResolution;   // TODO: test
     initGGrid(thetaRes, phiRes, distribution);
 }
 
@@ -223,10 +303,7 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
     // TODO: test
     //mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
 
-    mGFactorGrid.init()
-    mThetaRes = thetaRes;
-    mPhiRes = phiRes;
-    mGFactorGrid2 = gGrid;
+    mGFactorGrid.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, gGrid);
 
     // TODO: implement in InterpolatedGrid?
     /*// Print g grid
@@ -255,27 +332,12 @@ AshikhminCache::gFactor(const Vector &v) const
 {
     //Assert(mGFactorGrid != NULL);
     const float theta = SphericalTheta(v),
-                s = theta * INV_PI,
-                phi = SphericalPhi(v),
-                t = phi * INV_TWOPI;
+                //s = theta * INV_PI,
+                phi = SphericalPhi(v);
+                //t = phi * INV_TWOPI;
     //return mGFactorGrid->Lookup(s, t);
 
-    float x = s*mThetaRes - 0.5f,
-          y = t*mPhiRes - 0.5f;
-    int x1 = (int)x,
-        y1 = (int)y,
-        x2 = x1 + 1,
-        y2 = y1 + 1;
-    float dx = x - x1,
-          dy = y - y1;
-    x1 = std::max(0, x1);
-    y1 = std::max(0, y1);
-    x2 = std::min(mThetaRes-1, x2);
-    y2 = std::min(mPhiRes-1, y2);
-    return (1-dx) * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x1]
-         + dx     * (1-dy) * mGFactorGrid2[mThetaRes*y1 + x2]
-         + (1-dx) * dy     * mGFactorGrid2[mThetaRes*y2 + x1]
-         + dx     * dy     * mGFactorGrid2[mThetaRes*y2 + x2];
+    return mGFactorGrid.eval(theta, phi);
 }
 
 float
@@ -577,7 +639,7 @@ Ashikhmin::testAverageNHAndFactor_g(void)
     //       (i.e., return 0)
     //const Vector VTest(-0.33629645195f, -0.62566874881f, 0.70387734241f);
 
-    BlinnForAshikhmin distribution(BlinnExponent, 32);
+    BlinnForAshikhmin distribution(BlinnExponent);
 
     float avgNH = Ashikhmin::computeAverageNH(distribution);
     float gFactorForN = Ashikhmin::computeGFactor(N, distribution),

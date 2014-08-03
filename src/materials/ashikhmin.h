@@ -43,9 +43,8 @@ class AshikhminMaterial : public Material {
 public:
     AshikhminMaterial(Reference<Texture<Spectrum> > ks,
                       Reference<Texture<float> > rough,
-                      Reference<Texture<float> > bump,
-                      int gridResolution)
-        : Ks(ks), roughness(rough), bumpMap(bump), mGridResolution(gridResolution) {
+                      Reference<Texture<float> > bump)
+        : Ks(ks), roughness(rough), bumpMap(bump) {
     }
     BSDF *GetBSDF(const DifferentialGeometry &dgGeom,
                   const DifferentialGeometry &dgShading,
@@ -56,9 +55,6 @@ public:
 private:
     Reference<Texture<Spectrum> > Ks;
     Reference<Texture<float> > roughness, bumpMap;
-
-    // TODO: for test
-    int mGridResolution;
 
     static float testMIPMapFunc(float x, float y);
 };

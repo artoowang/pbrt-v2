@@ -52,29 +52,49 @@ using boost::math::isnan;
 
 using std::map;
 
+
+class InterpolatedGrid
+{
+public:
+    InterpolatedGrid();
+
+    bool init(float x1, float x2, int width, float y1, float y2, int height,
+            const vector<float> &samples);
+    float eval(float x, float y) const;
+
+    int getXResolution(void) const { return mWidth; }
+    int getYResolution(void) const { return mHeight; }
+    float getX1(void) const { return mX1; }
+    float getX2(void) const { return mX2; }
+    float getY1(void) const { return mY1; }
+    float getY2(void) const { return mY2; }
+
+protected:
+    float mX1, mX2, mY1, mY2;
+    int mWidth, mHeight;
+    vector<float> mSamples;
+};
+
+
 class AshikhminDistribution {
 public:
-    // TODO: testing gridResolution
-    AshikhminDistribution(int gridResolution) : mGridResolution(gridResolution)
-    { }
+    AshikhminDistribution() { }
     virtual ~AshikhminDistribution() { }
     virtual float D(const Vector &wh) const = 0;
     virtual void Sample_f(const Vector &wo, Vector *wi,
                           float u1, float u2, float *pdf) const = 0;
     virtual float Pdf(const Vector &wo, const Vector &wi) const = 0;
     virtual string signature(void) const { return ""; }
-
-    int mGridResolution;
 };
 
-// D is normalized for hemisphere (instead of the projected hemisphere as in Blinn)
-// I.e., Integrate[D(wh), {wh in hemisphere}] = 1
+// D is normalized for sphere (instead of the projected hemisphere as in Blinn)
+// I.e., Integrate[D(wh), {wh in sphere}] = 1
 // Currently Sample_f() and Pdf() implementation is the same as Blinn
 // I think Pdf() is against wi instead of wh, but still need to confirm that
 class BlinnForAshikhmin : public AshikhminDistribution
 {
 public:
-    BlinnForAshikhmin(float e, int gridResolution);
+    BlinnForAshikhmin(float e);
     virtual float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
@@ -87,7 +107,7 @@ private:
 class TabulatedDistribution : public AshikhminDistribution
 {
 public:
-    TabulatedDistribution(const AshikhminDistribution& srcDistribution);    // TODO
+    TabulatedDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes);
     virtual ~TabulatedDistribution();
     virtual float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
@@ -96,26 +116,15 @@ public:
 
 private:
     Distribution1D *mDistribution;
+    InterpolatedGrid mData;
+
+    void initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes);
 
     // Do not allow copy
     TabulatedDistribution(const TabulatedDistribution&);
     TabulatedDistribution& operator=(const TabulatedDistribution&);
 };
 
-class InterpolatedGrid
-{
-public:
-    InterpolatedGrid();
-
-    bool init(float x1, float x2, int width, float y1, float y2, int height,
-            const vector<float> &samples);
-    float eval(float x, float y) const;
-
-protected:
-    float mX1, mX2, mY1, mY2;
-    int mWidth, mHeight;
-    vector<float> mSamples;
-};
 
 class AshikhminCache
 {
@@ -127,6 +136,9 @@ public:
     float averageNH(void) const;
 
     static const AshikhminCache& get(const AshikhminDistribution &distribution);
+
+    // TODO: test
+    static int sGridResolution;
 
 protected:
     float mAvgNH;
