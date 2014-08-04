@@ -43,9 +43,11 @@ class AshikhminMaterial : public Material {
 public:
     AshikhminMaterial(Reference<Texture<Spectrum> > ks,
                       Reference<Texture<float> > rough,
-                      Reference<Texture<float> > bump)
-        : Ks(ks), roughness(rough), bumpMap(bump) {
-    }
+                      Reference<Texture<float> > bump,
+                      bool tabulated, int tabulatedRes)
+        : mKs(ks), mRoughness(rough), mBumpMap(bump),
+          mTabulated(tabulated),  mTabulatedRes(tabulatedRes)
+    { }
     BSDF *GetBSDF(const DifferentialGeometry &dgGeom,
                   const DifferentialGeometry &dgShading,
                   MemoryArena &arena) const;
@@ -53,8 +55,10 @@ public:
     static void testMIPMap(void);
 
 private:
-    Reference<Texture<Spectrum> > Ks;
-    Reference<Texture<float> > roughness, bumpMap;
+    Reference<Texture<Spectrum> > mKs;
+    Reference<Texture<float> > mRoughness, mBumpMap;
+    bool mTabulated;
+    int mTabulatedRes;
 
     static float testMIPMapFunc(float x, float y);
 };

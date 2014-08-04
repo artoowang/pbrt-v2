@@ -34,7 +34,6 @@
 #include "ashikhmin.h"
 
 #include <sstream>
-#include <openssl/md5.h>
 
 // For numerical integration
 #include "cubature-1.0/cubature.h"
@@ -177,13 +176,18 @@ BlinnForAshikhmin::signature(void) const
 
 // ----------------------------------------------------------------------------
 
-TabulatedDistribution::TabulatedDistribution(const AshikhminDistribution& srcDistribution,
-                                             int thetaRes, int phiRes) :
-        mDistribution(NULL)
+TabulatedDistribution::TabulatedDistributionMap TabulatedDistribution::sCache;
+boost::mutex TabulatedDistribution::sMutex;
+
+TabulatedDistribution::TabulatedDistribution() :
+        mDistribution(NULL), mSignature("TabulatedDistribution::uninitialized")
 {
-    initFromDistribution(srcDistribution, thetaRes, phiRes);
 }
 
+// TODO: currently, if this is allocated by BSDF_ALLOC or TabulatedDistribution::get(),
+//       it won't be destructed. (For the former, it's because the memory blocks are
+//       released directly by MemoryAreana; for the later, it's because the static cache
+//       currently doesn't release itself at the end of the application
 TabulatedDistribution::~TabulatedDistribution()
 {
     if (mDistribution != NULL) {
@@ -223,19 +227,26 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
         delete mDistribution;
     }
     mDistribution = new Distribution1D(pdf.data(), thetaRes * phiRes);
+    Assert(mDistribution != NULL);
 
     // The actual PDF of wh in sphere domain
     mData.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, data);
 
+    mSignature = buildSignature(srcDistribution, thetaRes, phiRes);
+
+    // TODO: test
+    fprintf(stderr, "%s created.\n", mSignature.c_str());
+
     // Compute MD5 sum of the data (for signature)
-    unsigned char md5digest[MD5_DIGEST_LENGTH];
+    // TODO: remove
+    /*unsigned char md5digest[MD5_DIGEST_LENGTH];
     MD5(reinterpret_cast<unsigned char*>(data.data()), sizeof(float)*data.size(), md5digest);
     // Hex digest
     stringstream ss;
     for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
         ss << boost::format("%02x") % (int)md5digest[i];
     }
-    mMD5Signature = ss.str();
+    mMD5Signature = ss.str();*/
 }
 
 float
@@ -297,11 +308,45 @@ TabulatedDistribution::Pdf(const Vector &wo, const Vector &wi) const
 string
 TabulatedDistribution::signature(void) const
 {
+    return mSignature;
+}
+
+string
+TabulatedDistribution::buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes)
+{
     stringstream ss;
     ss << "TabulatedDistribution:"
-            << mData.getXResolution() << "x" << mData.getYResolution() << ":"
-            << mMD5Signature;
+            << srcDistribution.signature() << ":"
+            << thetaRes << "x" << phiRes;
     return ss.str();
+}
+
+const TabulatedDistribution&
+TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes)
+{
+    boost::mutex::scoped_lock scopedLock(sMutex);
+    TabulatedDistributionMap::const_iterator it;
+    const string &signature = buildSignature(srcDistribution, thetaRes, phiRes);
+
+    if ((it = sCache.find(signature)) != sCache.end()) {
+        // Return cached result
+        Assert(it->second != NULL);
+        return *(it->second);
+
+    } else {
+        // Create a new TabulatedDistribution
+        TabulatedDistribution *distribution = new TabulatedDistribution;   // TODO: is there a way to release them upon program exit?
+        Assert(distribution != NULL); // TODO: error handling
+        distribution->initFromDistribution(srcDistribution, thetaRes, phiRes);
+
+        std::pair<TabulatedDistributionMap::iterator, bool> result =
+                sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
+        Assert(result.second == true);
+        Assert(result.first->second != NULL);
+        Assert(distribution.signature() == signature);
+
+        return *(result.first->second);
+    }
 }
 
 void
@@ -452,10 +497,10 @@ AshikhminCache::get(const AshikhminDistribution &distribution)
 
 
 Ashikhmin::Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-                       AshikhminDistribution *d)   // TODO: use reference
+                       const AshikhminDistribution &d)   // TODO: use reference
     : BxDF(BxDFType(BSDF_REFLECTION | BSDF_GLOSSY)),
      R(reflectance), mDistribution(d), fresnel(f),
-     mCache(AshikhminCache::get(*d))
+     mCache(AshikhminCache::get(d))
 {
 }
 
@@ -509,7 +554,7 @@ Ashikhmin::f(const Vector &woInput, const Vector &wiInput) const
     //return ret;
 
     // TODO: we need to make sure distribution->D(wh) actually returns a valid pdf; that is, it integrates to one over whole sphere
-    return R * mDistribution->D(wh) * avgNH * F /
+    return R * mDistribution.D(wh) * avgNH * F /
                (4.f * max(g_wi * g_wo, sSmallValue));
 }
 
@@ -521,7 +566,7 @@ Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
         return BxDF::Sample_f(wo, wi, u1, u2, pdf);
 
     } else {
-        mDistribution->Sample_f(wo, wi, u1, u2, pdf);
+        mDistribution.Sample_f(wo, wi, u1, u2, pdf);
         if (!SameHemisphere(wo, *wi)) {
             return Spectrum(0.f);
         }
@@ -539,7 +584,7 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
         if (!SameHemisphere(wo, wi)) {
             return 0.f;
         }
-        return mDistribution->Pdf(wo, wi);
+        return mDistribution.Pdf(wo, wi);
     }
 }
 
@@ -548,7 +593,7 @@ Ashikhmin::averageNH(void) const
 {
     // TODO: test
     //return 1.f;
-    //return computeAverageNH(*mDistribution);
+    //return computeAverageNH(mDistribution);
     return mCache.averageNH();
 }
 
@@ -599,7 +644,7 @@ Ashikhmin::gFactor(const Vector &v) const
 {
     // TODO: test
     //return 1.f;
-    //return computeGFactor(v, *mDistribution);
+    //return computeGFactor(v, mDistribution);
     return mCache.gFactor(v);
 }
 

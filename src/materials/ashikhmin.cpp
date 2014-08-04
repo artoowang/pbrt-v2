@@ -45,24 +45,29 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
                                  MemoryArena &arena) const {
     // Allocate _BSDF_, possibly doing bump mapping with _bumpMap_
     DifferentialGeometry dgs;
-    if (bumpMap)
-        Bump(bumpMap, dgGeom, dgShading, &dgs);
+    if (mBumpMap)
+        Bump(mBumpMap, dgGeom, dgShading, &dgs);
     else
         dgs = dgShading;
     BSDF *bsdf = BSDF_ALLOC(arena, BSDF)(dgs, dgGeom.nn);
-    Spectrum ks = Ks->Evaluate(dgs).Clamp();
+    Spectrum ks = mKs->Evaluate(dgs).Clamp();
     if (!ks.IsBlack()) {
         // TODO: test
         //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.5f, 1.f);
         Fresnel *fresnel = BSDF_ALLOC(arena, FresnelNoOp);
 
-        float rough = roughness->Evaluate(dgs);
-        // TODO: test
-        //AshikhminDistribution *distribution = BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough);
-        BlinnForAshikhmin blinn(1.f / rough);
-        AshikhminDistribution *distribution = BSDF_ALLOC(arena, TabulatedDistribution)(blinn, 32, 32);
+        float rough = mRoughness->Evaluate(dgs);
 
-        BxDF *spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+        BxDF *spec = NULL;
+        // TODO: test
+        if (mTabulated) {
+            BlinnForAshikhmin blinn(1.f / rough);
+            const AshikhminDistribution &distribution = TabulatedDistribution::get(blinn, mTabulatedRes, mTabulatedRes);
+            spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+        } else {
+            const AshikhminDistribution &distribution = *(BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough));
+            spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+        }
         bsdf->Add(spec);
     }
     return bsdf;
@@ -155,8 +160,10 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
 
     // TODO: test
     AshikhminCache::sGridResolution = mp.FindInt("gridresolution", 32);
+    bool tabulated = mp.FindBool("tabulated", false);
+    int tabulatedRes = mp.FindInt("tabulatedresolution", 32);
 
-    return new AshikhminMaterial(Ks, roughness, bumpMap);
+    return new AshikhminMaterial(Ks, roughness, bumpMap, tabulated, tabulatedRes);
 }
 
 

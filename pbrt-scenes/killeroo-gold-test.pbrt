@@ -28,24 +28,24 @@ SurfaceIntegrator "directlighting"
 
 WorldBegin
 
-#AttributeBegin
-#  Scale 1 -1 1
-#  LightSource 
-#    "infinite" "integer nsamples" [4]
-#  	           "string mapname" "textures/skylight-morn.exr"
-#    #"distant" "point from" [0 -1 0]
-#    #          "point to" [0 0 0]
-#  #Material "matte" "color Kd" [0 0 0]
-#  #AreaLightSource "area"  "color L" [50 50 50] "integer nsamples" [4]
-#  #Translate 0 0 800
-#  #ReverseOrientation
-#  #Shape "disk" "float radius" [150] # was 300
-#AttributeEnd
+AttributeBegin
+  Scale 1 -1 1
+  LightSource 
+    "infinite" "integer nsamples" [4]
+  	           "string mapname" "textures/skylight-morn.exr"
+    #"distant" "point from" [0 -1 0]
+    #          "point to" [0 0 0]
+  #Material "matte" "color Kd" [0 0 0]
+  #AreaLightSource "area"  "color L" [50 50 50] "integer nsamples" [4]
+  #Translate 0 0 800
+  #ReverseOrientation
+  #Shape "disk" "float radius" [150] # was 300
+AttributeEnd
 
 AttributeBegin
   CoordSysTransform "camera"
-  LightSource "distant" "color L" [1 1 1]
-  #LightSource "distant" "color L" [.2 .2 .2]
+  #LightSource "distant" "color L" [1 1 1]
+  LightSource "distant" "color L" [.2 .2 .2]
 AttributeEnd
 
 AttributeBegin
@@ -82,6 +82,7 @@ AttributeBegin
   #                     "float roughness" [.008]
   Material "ashikhmin" "color Ks" [1 1 1]
                        "float roughness" [.08]
+                       "bool tabulated" "true"
   #Material "uber" "color Kd" [0 0 0]
   #                "color Ks" [1 1 1]
   #                "float roughness" [.08]

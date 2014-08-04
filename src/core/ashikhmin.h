@@ -107,12 +107,15 @@ private:
 class TabulatedDistribution : public AshikhminDistribution
 {
 public:
-    TabulatedDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes);
     virtual ~TabulatedDistribution();
     virtual float D(const Vector &wh) const;
     virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
     virtual string signature(void) const;
+
+    static const TabulatedDistribution& get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+    // TODO
+    //static const TabulatedDistribution& get(const string &filename, int thetaRes, int phiRes);
 
     // TODO: for test
     static void test(void);
@@ -120,9 +123,20 @@ public:
 private:
     Distribution1D *mDistribution;
     InterpolatedGrid mData;
-    string mMD5Signature;
+    string mSignature;
 
-    void initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes);
+    // Object is only created by static member function
+    TabulatedDistribution();
+
+    void initFromDistribution(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+
+    typedef map<string, TabulatedDistribution*> TabulatedDistributionMap;
+    static TabulatedDistributionMap sCache;
+    static boost::mutex sMutex;
+
+    static string buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+    // TODO
+    //static const string& buildSignature(const string &filename, int thetaRes, int phiRes);
 
     // Do not allow copy
     TabulatedDistribution(const TabulatedDistribution&);
@@ -168,7 +182,7 @@ class Ashikhmin : public BxDF
 {
 public:
     Ashikhmin(const Spectrum &reflectance, Fresnel *f,
-            AshikhminDistribution *d);
+            const AshikhminDistribution &d);
     Spectrum f(const Vector &wo, const Vector &wi) const;
     Spectrum Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const;
@@ -192,7 +206,7 @@ private:
             unsigned /*fdim*/, double *fval);
 
     Spectrum R;
-    AshikhminDistribution *mDistribution;
+    const AshikhminDistribution &mDistribution;
     Fresnel *fresnel;
     // Note: this needs to be reference, because if it's an object, it's destructor might not be called
     //       upon destruction if this object (Ashikhmin) is allocated by BSDF_ALLOC() (Need confirm)
