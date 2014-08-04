@@ -58,9 +58,9 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
 
         float rough = roughness->Evaluate(dgs);
         // TODO: test
-        AshikhminDistribution *distribution = BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough);
-        //BlinnForAshikhmin blinn(1.f / rough);
-        //AshikhminDistribution *distribution = BSDF_ALLOC(arena, TabulatedDistribution)(blinn, 32, 32);
+        //AshikhminDistribution *distribution = BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough);
+        BlinnForAshikhmin blinn(1.f / rough);
+        AshikhminDistribution *distribution = BSDF_ALLOC(arena, TabulatedDistribution)(blinn, 32, 32);
 
         BxDF *spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
         bsdf->Add(spec);
@@ -147,7 +147,7 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
     //Ashikhmin::testAverageNHAndFactor_g();
     //Quaternion::unitTest();
     //AshikhminMaterial::testMIPMap();
-    TabulatedDistribution::test();
+    //TabulatedDistribution::test();
 
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
