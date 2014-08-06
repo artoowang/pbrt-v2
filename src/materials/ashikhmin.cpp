@@ -58,7 +58,8 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
 
         float rough = mRoughness->Evaluate(dgs);
 
-        BxDF *spec = NULL;
+        Ashikhmin *spec = NULL;
+
         // TODO: test
         if (mTabulated) {
             BlinnForAshikhmin blinn(1.f / rough);
@@ -68,6 +69,8 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
             const AshikhminDistribution &distribution = *(BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough));
             spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
         }
+        spec->mUseUniformSampling = mUseUniformSampling;
+
         bsdf->Add(spec);
     }
     return bsdf;
@@ -158,12 +161,15 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
     Reference<Texture<float> > bumpMap = mp.GetFloatTextureOrNull("bumpmap");
 
+    AshikhminMaterial *mtl = new AshikhminMaterial(Ks, roughness, bumpMap);
+
     // TODO: test
     AshikhminCache::sGridResolution = mp.FindInt("gridresolution", 32);
-    bool tabulated = mp.FindBool("tabulated", false);
-    int tabulatedRes = mp.FindInt("tabulatedresolution", 32);
+    mtl->mTabulated = mp.FindBool("tabulated", false);
+    mtl->mTabulatedRes = mp.FindInt("tabulatedresolution", 32);
+    mtl->mUseUniformSampling = mp.FindBool("useuniformsampling", false);
 
-    return new AshikhminMaterial(Ks, roughness, bumpMap, tabulated, tabulatedRes);
+    return mtl;
 }
 
 

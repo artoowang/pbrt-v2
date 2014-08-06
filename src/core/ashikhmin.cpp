@@ -46,7 +46,6 @@ const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
 const float sSmallValue = 1e-6f;
 const bool sPrintGGrid = false;
-const bool sUseUniformSampling = false;
 
 // ----------------------------------------------------------------------------
 
@@ -175,20 +174,21 @@ BlinnForAshikhmin::signature(void) const
 }
 
 // ----------------------------------------------------------------------------
+// TODO: remove
 
-TabulatedDistribution::TabulatedDistributionMap TabulatedDistribution::sCache;
-boost::mutex TabulatedDistribution::sMutex;
+TabulatedDistributionTest::TabulatedDistributionMap TabulatedDistributionTest::sCache;
+boost::mutex TabulatedDistributionTest::sMutex;
 
-TabulatedDistribution::TabulatedDistribution() :
-        mDistribution(NULL), mSignature("TabulatedDistribution::uninitialized")
+TabulatedDistributionTest::TabulatedDistributionTest() :
+        mDistribution(NULL), mSignature("TabulatedDistributionTest::uninitialized")
 {
 }
 
-// TODO: currently, if this is allocated by BSDF_ALLOC or TabulatedDistribution::get(),
+// TODO: currently, if this is allocated by BSDF_ALLOC or TabulatedDistributionTest::get(),
 //       it won't be destructed. (For the former, it's because the memory blocks are
 //       released directly by MemoryAreana; for the later, it's because the static cache
 //       currently doesn't release itself at the end of the application
-TabulatedDistribution::~TabulatedDistribution()
+TabulatedDistributionTest::~TabulatedDistributionTest()
 {
     if (mDistribution != NULL) {
         delete mDistribution;
@@ -196,7 +196,7 @@ TabulatedDistribution::~TabulatedDistribution()
 }
 
 void
-TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
+TabulatedDistributionTest::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
 {
     // We parse through the source distribution by a thetaRes x phiRes grid,
     // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
@@ -236,17 +236,183 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
 
     // TODO: test
     fprintf(stderr, "%s created.\n", mSignature.c_str());
+}
 
-    // Compute MD5 sum of the data (for signature)
-    // TODO: remove
-    /*unsigned char md5digest[MD5_DIGEST_LENGTH];
-    MD5(reinterpret_cast<unsigned char*>(data.data()), sizeof(float)*data.size(), md5digest);
-    // Hex digest
-    stringstream ss;
-    for (int i = 0; i < MD5_DIGEST_LENGTH; ++i) {
-        ss << boost::format("%02x") % (int)md5digest[i];
+float
+TabulatedDistributionTest::D(const Vector &wh) const
+{
+    const float theta = SphericalTheta(wh),
+                phi = SphericalPhi(wh);
+    return mData.eval(theta, phi);
+}
+
+void
+TabulatedDistributionTest::Sample_f(const Vector &wo, Vector *wi, float u1, float u2, float *pdf) const
+{
+    // It seems we always call Sample_f() with a pdf, and we use it to
+    // determine if the sample is valid
+    Assert(pdf != NULL);
+
+    const int thetaRes = mData.getXResolution(),
+              phiRes = mData.getYResolution(),
+              index = mDistribution->SampleDiscrete(u1, NULL),
+              thetaIndex = index % thetaRes,
+              phiIndex = index / thetaRes;
+
+    // TODO: we should jitter the wi within the selected cell
+    const float theta = ((thetaIndex + 0.5f) / thetaRes) * M_PI,
+                phi = ((phiIndex + 0.5f) / phiRes) * 2.f * M_PI,
+                sinTheta = sinf(theta), cosTheta = cosf(theta);
+    if (theta > 0.5f * M_PI) {
+        fprintf(stderr, "theta = %f\n", theta);
     }
-    mMD5Signature = ss.str();*/
+    const Vector wh = SphericalDirection(sinTheta, cosTheta, phi);
+    const float dotHO = Dot(wh, wo);
+    if (dotHO < 0) {
+        //fprintf(stderr, "dotHO = %f\n", dotHO);
+        *pdf = 0.f;
+        return;
+    }
+
+    // Compute incident direction by reflecting about wh
+    *wi = -wo + 2.f * dotHO * wh;
+    *pdf = Pdf(wo, *wi);    // TODO: can be optimized
+}
+
+float
+TabulatedDistributionTest::Pdf(const Vector &wo, const Vector &wi) const
+{
+    const Vector wh = Normalize(wo + wi);
+    const float dotHO = Dot(wh, wo);
+    if (dotHO > 0.f) {
+        return D(wh) / (4.f * dotHO);
+    } else {
+        // It should be very unlikely we are here, but let's check anyway
+        return 0.f;
+    }
+}
+
+string
+TabulatedDistributionTest::signature(void) const
+{
+    return mSignature;
+}
+
+string
+TabulatedDistributionTest::buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes)
+{
+    stringstream ss;
+    ss << "TabulatedDistributionTest:"
+            << srcDistribution.signature() << ":"
+            << thetaRes << "x" << phiRes;
+    return ss.str();
+}
+
+const TabulatedDistributionTest&
+TabulatedDistributionTest::get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes)
+{
+    boost::mutex::scoped_lock scopedLock(sMutex);
+    TabulatedDistributionMap::const_iterator it;
+    const string &signature = buildSignature(srcDistribution, thetaRes, phiRes);
+
+    if ((it = sCache.find(signature)) != sCache.end()) {
+        // Return cached result
+        Assert(it->second != NULL);
+        return *(it->second);
+
+    } else {
+        // Create a new TabulatedDistributionTest
+        TabulatedDistributionTest *distribution = new TabulatedDistributionTest;   // TODO: is there a way to release them upon program exit?
+        Assert(distribution != NULL); // TODO: error handling
+        distribution->initFromDistribution(srcDistribution, thetaRes, phiRes);
+
+        std::pair<TabulatedDistributionMap::iterator, bool> result =
+                sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
+        Assert(result.second == true);
+        Assert(result.first->second != NULL);
+        Assert(distribution.signature() == signature);
+
+        return *(result.first->second);
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+TabulatedDistribution::TabulatedDistributionMap TabulatedDistribution::sCache;
+boost::mutex TabulatedDistribution::sMutex;
+
+TabulatedDistribution::TabulatedDistribution() :
+        mPhiDist(NULL), mSignature("TabulatedDistribution::uninitialized")
+{
+}
+
+// TODO: currently, if this is allocated by BSDF_ALLOC or TabulatedDistribution::get(),
+//       it won't be destructed. (For the former, it's because the memory blocks are
+//       released directly by MemoryAreana; for the later, it's because the static cache
+//       currently doesn't release itself at the end of the application
+TabulatedDistribution::~TabulatedDistribution()
+{
+    if (mPhiDist != NULL) {
+        delete mPhiDist;
+    }
+    for (vector<Distribution1D*>::iterator it = mThetaDists.begin();
+            it != mThetaDists.end();
+            ++it) {
+        delete *it;
+    }
+}
+
+void
+TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
+{
+    // We parse through the source distribution by a thetaRes x phiRes grid,
+    // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
+    // - data: the PDF (against half vector wh over sphere) returned by srcDistribution.D()
+    // - pdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
+    //        D(h) * sin(theta). This is the value used to drive Distribution1D
+    vector<float> data(thetaRes * phiRes), pdf(thetaRes * phiRes), pdfy(phiRes);
+    for (int y = 0; y < phiRes; ++y) {
+        const float t = (y + 0.5f) / phiRes,
+                    phi = 2.f * M_PI * t;
+        pdfy[y] = 0.f;
+
+        for (int x = 0; x < thetaRes; ++x) {
+            const float s = (x + 0.5f) / thetaRes,
+                        theta = M_PI * s,
+                        costheta = cosf(theta),
+                        sintheta = sinf(theta);
+            const Vector &h = SphericalDirection(sintheta, costheta, phi);
+            const float D = srcDistribution.D(h);
+
+            data[y*thetaRes + x] = D;
+            pdf[y*thetaRes + x] = D * sintheta;
+            pdfy[y] += pdf[y*thetaRes + x];
+        }
+    }
+
+    // The 1D distribution to select cells against a PDF in (theta, phi) domain
+    // We first sample against phi using pdfy, then sample against theta using pdf+y*thetaRes
+    // This utilizes both 2D samples (u1 and u2) and works with Halton sequence and
+    // lowdiscrepency sampler. See Sample_f()
+    Assert(mThetaDists.size() == 0 && mPhiDist == NULL);
+
+    mPhiDist = new Distribution1D(pdfy.data(), phiRes);
+    Assert(mPhiDist != NULL);
+
+    mThetaDists.reserve(phiRes);
+    for (int y = 0; y < phiRes; ++y) {
+        Distribution1D *dist = new Distribution1D(pdf.data() + y*thetaRes, thetaRes);
+        Assert(dist != NULL);
+        mThetaDists[y] = dist;
+    }
+
+    // The actual PDF of wh in sphere domain
+    mData.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, data);
+
+    mSignature = buildSignature(srcDistribution, thetaRes, phiRes);
+
+    // TODO: test
+    fprintf(stderr, "%s created.\n", mSignature.c_str());
 }
 
 float
@@ -266,23 +432,49 @@ TabulatedDistribution::D(const Vector &wh) const
 void
 TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2, float *pdf) const
 {
+    // TODO: test "analytical" Sample_f() for BlinnForAshikhmin with exponent = 12.5
+    // Compute sampled half-angle vector $\wh$ for Blinn distribution
+    /*float exponent = 12.5f;
+    float costheta = powf(u1, 1.f / (exponent+1));
+    float sintheta = sqrtf(max(0.f, 1.f - costheta*costheta));
+    float phi = u2 * 2.f * M_PI;
+    Vector wh = SphericalDirection(sintheta, costheta, phi);
+    if (!SameHemisphere(wo, wh)) {
+        fprintf(stderr, "Reverse wh\n");
+        wh = -wh;
+    }
+
+    if (Dot(wo, wh) < 0) {
+        fprintf(stderr, "HO = %f\n", Dot(wo, wh));
+        *pdf = 0.f;
+        return;
+    }
+
+    // Compute incident direction by reflecting about $\wh$
+    *wi = -wo + 2.f * Dot(wo, wh) * wh;
+    *pdf = Pdf(wo, *wi);*/
+
     // It seems we always call Sample_f() with a pdf, and we use it to
     // determine if the sample is valid
-    Assert(pdf != NULL);
-
     const int thetaRes = mData.getXResolution(),
-              phiRes = mData.getYResolution(),
-              index = mDistribution->SampleDiscrete(u1, NULL),
-              thetaIndex = index % thetaRes,
-              phiIndex = index / thetaRes;
+              phiRes = mData.getYResolution();
+
+    Assert(pdf != NULL && mPhiDist != NULL && mThetaDists.size() == phiRes);
+
+    const int phiIndex = mPhiDist->SampleDiscrete(u1, NULL),
+              thetaIndex = mThetaDists[phiIndex]->SampleDiscrete(u2, NULL);
 
     // TODO: we should jitter the wi within the selected cell
     const float theta = ((thetaIndex + 0.5f) / thetaRes) * M_PI,
                 phi = ((phiIndex + 0.5f) / phiRes) * 2.f * M_PI,
                 sinTheta = sinf(theta), cosTheta = cosf(theta);
+    if (theta > 0.5f * M_PI) {
+        fprintf(stderr, "theta = %f\n", theta);
+    }
     const Vector wh = SphericalDirection(sinTheta, cosTheta, phi);
     const float dotHO = Dot(wh, wo);
     if (dotHO < 0) {
+        //fprintf(stderr, "dotHO = %f\n", dotHO);
         *pdf = 0.f;
         return;
     }
@@ -562,7 +754,7 @@ Spectrum
 Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const 
 {
-    if (sUseUniformSampling) {
+    if (mUseUniformSampling) {
         return BxDF::Sample_f(wo, wi, u1, u2, pdf);
 
     } else {
@@ -577,7 +769,7 @@ Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
 float
 Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const 
 {
-    if (sUseUniformSampling) {
+    if (mUseUniformSampling) {
         return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
 
     } else {

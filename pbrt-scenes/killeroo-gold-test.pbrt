@@ -83,6 +83,7 @@ AttributeBegin
   Material "ashikhmin" "color Ks" [1 1 1]
                        "float roughness" [.08]
                        "bool tabulated" "true"
+                       "integer tabulatedresolution" [64]
   #Material "uber" "color Kd" [0 0 0]
   #                "color Ks" [1 1 1]
   #                "float roughness" [.08]

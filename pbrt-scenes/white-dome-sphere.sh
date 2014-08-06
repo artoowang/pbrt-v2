@@ -2,7 +2,7 @@
 
 NAME="white-dome-sphere"
 PBRT_FILE="${NAME}.pbrt"
-EXR_FILE="${NAME}.exr"
+OUTPUT_FILE="${NAME}.exr"
 OUTPUT_DIR="${NAME}"
 
 DISPLAY_CMD="i_view32"
@@ -20,6 +20,7 @@ mkdir -p "${OUTPUT_DIR}"
 # Search for unused sequence number
 for i in $(seq -f '%03g' 0 999); do
     TIF_FILE="${NAME}.${i}.tif"
+    EXR_FILE="${NAME}.${i}.exr"
     if [ ! -e "${OUTPUT_DIR}/$TIF_FILE" ]; then
         break
     fi
@@ -33,7 +34,8 @@ fi
 echo >&2 "Write to ${OUTPUT_DIR}/${TIF_FILE}"
 
 pbrt "$PBRT_FILE"
-exrtotiff -gamma 2.2 "$EXR_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
-exrdisplay "$EXR_FILE" &
+exrtotiff -gamma 1 "$OUTPUT_FILE" "${OUTPUT_DIR}/${TIF_FILE}"
+/bin/cp -f "$OUTPUT_FILE" "${OUTPUT_DIR}/${EXR_FILE}"
+exrdisplay "$OUTPUT_FILE" &
 "$DISPLAY_CMD" "${OUTPUT_DIR}/${TIF_FILE}" &
 

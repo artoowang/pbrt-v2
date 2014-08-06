@@ -104,6 +104,41 @@ private:
     float exponent;
 };
 
+// TODO: remove
+class TabulatedDistributionTest : public AshikhminDistribution
+{
+public:
+    virtual ~TabulatedDistributionTest();
+    virtual float D(const Vector &wh) const;
+    virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
+    virtual float Pdf(const Vector &wi, const Vector &wo) const;
+    virtual string signature(void) const;
+
+    static const TabulatedDistributionTest& get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+
+private:
+    Distribution1D *mDistribution;
+    InterpolatedGrid mData;
+    string mSignature;
+
+    // Object is only created by static member function
+    TabulatedDistributionTest();
+
+    void initFromDistribution(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+
+    typedef map<string, TabulatedDistributionTest*> TabulatedDistributionMap;
+    static TabulatedDistributionMap sCache;
+    static boost::mutex sMutex;
+
+    static string buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+    // TODO
+    //static const string& buildSignature(const string &filename, int thetaRes, int phiRes);
+
+    // Do not allow copy
+    TabulatedDistributionTest(const TabulatedDistributionTest&);
+    TabulatedDistributionTest& operator=(const TabulatedDistributionTest&);
+};
+
 class TabulatedDistribution : public AshikhminDistribution
 {
 public:
@@ -121,7 +156,8 @@ public:
     static void test(void);
 
 private:
-    Distribution1D *mDistribution;
+    vector<Distribution1D*> mThetaDists;
+    Distribution1D *mPhiDist;
     InterpolatedGrid mData;
     string mSignature;
 
@@ -187,6 +223,9 @@ public:
     Spectrum Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
+
+    // TODO: for test
+    bool mUseUniformSampling;
 
     // Utility functions
     static float computeGFactor(const Vector &v, const AshikhminDistribution &distribution);
