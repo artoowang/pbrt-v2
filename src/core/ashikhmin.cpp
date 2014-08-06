@@ -330,7 +330,7 @@ TabulatedDistributionTest::get(const AshikhminDistribution &srcDistribution, int
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
         Assert(result.second == true);
         Assert(result.first->second != NULL);
-        Assert(distribution.signature() == signature);
+        Assert(distribution->signature() == signature);
 
         return *(result.first->second);
     }
@@ -399,7 +399,7 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
     mPhiDist = new Distribution1D(pdfy.data(), phiRes);
     Assert(mPhiDist != NULL);
 
-    mThetaDists.reserve(phiRes);
+    mThetaDists.resize(phiRes, NULL);
     for (int y = 0; y < phiRes; ++y) {
         Distribution1D *dist = new Distribution1D(pdf.data() + y*thetaRes, thetaRes);
         Assert(dist != NULL);
@@ -434,7 +434,7 @@ TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2
 {
     // TODO: test "analytical" Sample_f() for BlinnForAshikhmin with exponent = 12.5
     // Compute sampled half-angle vector $\wh$ for Blinn distribution
-    /*float exponent = 12.5f;
+    float exponent = 12.5f;
     float costheta = powf(u1, 1.f / (exponent+1));
     float sintheta = sqrtf(max(0.f, 1.f - costheta*costheta));
     float phi = u2 * 2.f * M_PI;
@@ -452,36 +452,32 @@ TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2
 
     // Compute incident direction by reflecting about $\wh$
     *wi = -wo + 2.f * Dot(wo, wh) * wh;
-    *pdf = Pdf(wo, *wi);*/
+    *pdf = Pdf(wo, *wi);
 
     // It seems we always call Sample_f() with a pdf, and we use it to
     // determine if the sample is valid
-    const int thetaRes = mData.getXResolution(),
+    /*const int thetaRes = mData.getXResolution(),
               phiRes = mData.getYResolution();
 
     Assert(pdf != NULL && mPhiDist != NULL && mThetaDists.size() == phiRes);
 
-    const int phiIndex = mPhiDist->SampleDiscrete(u1, NULL),
-              thetaIndex = mThetaDists[phiIndex]->SampleDiscrete(u2, NULL);
+    float phiU = 0.5f, thetaU = 0.5f;   // Used to jitter the sample inside the cells
+    const int phiIndex = mPhiDist->SampleDiscrete(u1, NULL, &phiU),
+              thetaIndex = mThetaDists[phiIndex]->SampleDiscrete(u2, NULL, &thetaU);
 
-    // TODO: we should jitter the wi within the selected cell
-    const float theta = ((thetaIndex + 0.5f) / thetaRes) * M_PI,
-                phi = ((phiIndex + 0.5f) / phiRes) * 2.f * M_PI,
+    const float theta = ((thetaIndex + thetaU) / thetaRes) * M_PI,
+                phi = ((phiIndex + phiU) / phiRes) * 2.f * M_PI,
                 sinTheta = sinf(theta), cosTheta = cosf(theta);
-    if (theta > 0.5f * M_PI) {
-        fprintf(stderr, "theta = %f\n", theta);
-    }
     const Vector wh = SphericalDirection(sinTheta, cosTheta, phi);
     const float dotHO = Dot(wh, wo);
     if (dotHO < 0) {
-        //fprintf(stderr, "dotHO = %f\n", dotHO);
         *pdf = 0.f;
         return;
     }
 
     // Compute incident direction by reflecting about wh
     *wi = -wo + 2.f * dotHO * wh;
-    *pdf = Pdf(wo, *wi);    // TODO: can be optimized
+    *pdf = Pdf(wo, *wi);    // TODO: can be optimized*/
 }
 
 float
@@ -535,7 +531,7 @@ TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int the
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
         Assert(result.second == true);
         Assert(result.first->second != NULL);
-        Assert(distribution.signature() == signature);
+        Assert(distribution->signature() == signature);
 
         return *(result.first->second);
     }
