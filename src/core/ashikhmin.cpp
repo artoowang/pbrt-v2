@@ -432,7 +432,7 @@ TabulatedDistribution::D(const Vector &wh) const
 void
 TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2, float *pdf) const
 {
-    // TODO: test "analytical" Sample_f() for BlinnForAshikhmin with exponent = 12.5
+    /*// TODO: test "analytical" Sample_f() for BlinnForAshikhmin with exponent = 12.5
     // Compute sampled half-angle vector $\wh$ for Blinn distribution
     float exponent = 12.5f;
     float costheta = powf(u1, 1.f / (exponent+1));
@@ -452,11 +452,11 @@ TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2
 
     // Compute incident direction by reflecting about $\wh$
     *wi = -wo + 2.f * Dot(wo, wh) * wh;
-    *pdf = Pdf(wo, *wi);
+    *pdf = Pdf(wo, *wi);*/
 
     // It seems we always call Sample_f() with a pdf, and we use it to
     // determine if the sample is valid
-    /*const int thetaRes = mData.getXResolution(),
+    const int thetaRes = mData.getXResolution(),
               phiRes = mData.getYResolution();
 
     Assert(pdf != NULL && mPhiDist != NULL && mThetaDists.size() == phiRes);
@@ -477,7 +477,7 @@ TabulatedDistribution::Sample_f(const Vector &wo, Vector *wi, float u1, float u2
 
     // Compute incident direction by reflecting about wh
     *wi = -wo + 2.f * dotHO * wh;
-    *pdf = Pdf(wo, *wi);    // TODO: can be optimized*/
+    *pdf = Pdf(wo, *wi);    // TODO: can be optimized
 }
 
 float
@@ -754,7 +754,14 @@ Ashikhmin::Sample_f(const Vector &wo, Vector *wi,
         return BxDF::Sample_f(wo, wi, u1, u2, pdf);
 
     } else {
-        mDistribution.Sample_f(wo, wi, u1, u2, pdf);
+        if (wo.z < 0.f) {
+            // Reverse side
+            mDistribution.Sample_f(-wo, wi, u1, u2, pdf);
+            *wi = -(*wi);
+        } else {
+            mDistribution.Sample_f(wo, wi, u1, u2, pdf);
+        }
+
         if (!SameHemisphere(wo, *wi)) {
             return Spectrum(0.f);
         }
@@ -772,7 +779,13 @@ Ashikhmin::Pdf(const Vector &wo, const Vector &wi) const
         if (!SameHemisphere(wo, wi)) {
             return 0.f;
         }
-        return mDistribution.Pdf(wo, wi);
+
+        if (wo.z < 0.f) {
+            // Reverse side
+            return mDistribution.Pdf(-wo, -wi);
+        } else {
+            return mDistribution.Pdf(wo, wi);
+        }
     }
 }
 
