@@ -142,6 +142,7 @@ struct SubsurfaceOctreeNode {
 };
 
 
+// See [Jensen et al., 2001]
 struct DiffusionReflectance {
     // DiffusionReflectance Public Methods
     DiffusionReflectance(const Spectrum &sigma_a, const Spectrum &sigmap_s,
@@ -153,9 +154,11 @@ struct DiffusionReflectance {
         zpos = Spectrum(1.f) / sigmap_t;
         zneg = -zpos * (1.f + (4.f/3.f) * A);
     }
+    // This returns Rd(r). Here r is the distance from the shading point to a 
+    // irradiance sample point, and d2 = r^2
     Spectrum operator()(float d2) const {
-        Spectrum dpos = Sqrt(Spectrum(d2) + zpos * zpos);
-        Spectrum dneg = Sqrt(Spectrum(d2) + zneg * zneg);
+        Spectrum dpos = Sqrt(Spectrum(d2) + zpos * zpos);   // distance to the real source
+        Spectrum dneg = Sqrt(Spectrum(d2) + zneg * zneg);   // distance to the virtual source
         Spectrum Rd = (alphap / (4.f * M_PI)) *
             ((zpos * (dpos * sigma_tr + Spectrum(1.f)) *
               Exp(-sigma_tr * dpos)) / (dpos * dpos * dpos) -

@@ -58,7 +58,8 @@ struct IrregIsotropicBRDFSample {
     Spectrum v;
 };
 
-
+// See [Donner and Jensen, 2005]
+// ([Jensen et al., 2001] is only half implementation)
 inline float Fdr(float eta) {
     if (eta >= 1)
         return -1.4399f / (eta*eta) + 0.7099f / eta + 0.6681f +
