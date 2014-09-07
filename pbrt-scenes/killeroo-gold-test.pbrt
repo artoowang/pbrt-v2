@@ -42,11 +42,11 @@ AttributeBegin
   #Shape "disk" "float radius" [150] # was 300
 AttributeEnd
 
-AttributeBegin
-  CoordSysTransform "camera"
-  #LightSource "distant" "color L" [1 1 1]
-  LightSource "distant" "color L" [.2 .2 .2]
-AttributeEnd
+#AttributeBegin
+#  CoordSysTransform "camera"
+#  #LightSource "distant" "color L" [1 1 1]
+#  LightSource "distant" "color L" [.2 .2 .2]
+#AttributeEnd
 
 AttributeBegin
   Material "matte" "color Kd" [.5 .5 .5]
@@ -82,7 +82,10 @@ AttributeBegin
   #                     "float roughness" [.008]
   Material "ashikhmin" "color Ks" [1 1 1]
                        "float roughness" [.08]
+                       "integer gridresolution" [32]
                        "bool tabulated" "true"
+                       "integer tabulatedresolution" [64]
+                       "bool useuniformsampling" "false"
   #Material "uber" "color Kd" [0 0 0]
   #                "color Ks" [1 1 1]
   #                "float roughness" [.08]
