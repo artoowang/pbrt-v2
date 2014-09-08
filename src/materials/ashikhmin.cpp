@@ -53,7 +53,7 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
     Spectrum ks = mKs->Evaluate(dgs).Clamp();
     if (!ks.IsBlack()) {
         // TODO: test
-        //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.5f, 1.f);
+        //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.f, 1.5f);
         Fresnel *fresnel = BSDF_ALLOC(arena, FresnelNoOp);
 
         float rough = mRoughness->Evaluate(dgs);

@@ -7,9 +7,10 @@ Camera "perspective" "float fov" [28.8415]
 Film "image"  "integer xresolution" [683] "integer yresolution" [512]
     "string filename" "material-preview.exr"
 
-Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+Sampler "lowdiscrepancy" "integer pixelsamples" [64]
 
-SurfaceIntegrator "directlighting"
+#SurfaceIntegrator "directlighting"
+SurfaceIntegrator "path"
 
 WorldBegin
 
@@ -27,13 +28,19 @@ AttributeBegin
   Rotate -90 1 0 0
 
   LightSource 
-    "infinite" "integer nsamples" [4]
+    "infinite" "integer nsamples" [1]
   	           "string mapname" "textures/matpreview_latlong.exr"
                "rgb L" [3 3 3]
+               #"string mapname" "textures/white.exr"
 AttributeEnd
 
 AttributeBegin
-  Material "matte" "color Kd" [.5 .5 .5]
+  Material "uber" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+                  #"color Kd" [0 0 0]
+                  "color Ks" [0 0 0]
+                  "color Kr" [1 1 1]
+                  #"float roughness" [.0001]
+                  "float index" [0.52631578947]     # This is (1/1.9). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
   # Note the following transform includes the 0.01 translation along +Z 
   # left-multiplied into the transform, since we can't do anything before
   # "Transform" because it overwrites the current result. This is simply
@@ -43,13 +50,16 @@ AttributeBegin
 AttributeEnd
 
 AttributeBegin
-  Material "matte" "color Kd" [.5 .0 .5]
+  Material "matte" "color Kd" [.18 .18 .18]
   Translate 0 0 0.0252155
   Include "geometry/matpreview-inner.pbrt"
 AttributeEnd
 
 AttributeBegin
-  Material "matte" "color Kd" [.5 .5 .0]
+  Texture "checks" "spectrum" "checkerboard"
+                              "float uscale" [16] "float vscale" [16]
+                              "rgb tex1" [.4 .4 .4] "rgb tex2" [.2 .2 .2]
+  Material "matte" "texture Kd" "checks"
   Transform [3.38818 4.06354 0 0  -4.06354 3.38818 0 0  0 0 5.29076 0  -1.74958 1.43683 -0.0120714 1]
   Rotate -4.3 0 0 1
   Include "geometry/matpreview-plane.pbrt"
