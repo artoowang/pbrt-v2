@@ -1,6 +1,7 @@
 Scale -1 1 1
 
 LookAt 3.69558 -3.46243 3.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 0.895346
+#LookAt 30.69558 -30.46243 30.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 0.895346
 #LookAt 10 0 0  0 0 0  0 0 1
 Camera "perspective" "float fov" [28.8415]
 Film "image"  "integer xresolution" [683] "integer yresolution" [512]
@@ -33,8 +34,11 @@ AttributeEnd
 
 AttributeBegin
   Material "matte" "color Kd" [.5 .5 .5]
-  Transform [ 0.614046 -0.614047 0 0  0.614047 0.614046 0 0  0 0 0.868393 0 -1.78814e-07 2.08616e-07 1.02569 1 ]
-  Translate 0 0 0.01
+  # Note the following transform includes the 0.01 translation along +Z 
+  # left-multiplied into the transform, since we can't do anything before
+  # "Transform" because it overwrites the current result. This is simply
+  # done by adding m34 by 0.01
+  Transform [ 0.614046 -0.614047 0 0  0.614047 0.614046 0 0  0 0 0.868393 0 -1.78814e-07 2.08616e-07 1.03569 1 ]
   Include "geometry/matpreview-base.pbrt"
 AttributeEnd
 
@@ -42,6 +46,13 @@ AttributeBegin
   Material "matte" "color Kd" [.5 .0 .5]
   Translate 0 0 0.0252155
   Include "geometry/matpreview-inner.pbrt"
+AttributeEnd
+
+AttributeBegin
+  Material "matte" "color Kd" [.5 .5 .0]
+  Transform [3.38818 4.06354 0 0  -4.06354 3.38818 0 0  0 0 5.29076 0  -1.74958 1.43683 -0.0120714 1]
+  Rotate -4.3 0 0 1
+  Include "geometry/matpreview-plane.pbrt"
 AttributeEnd
 
 WorldEnd
