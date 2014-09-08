@@ -1,0 +1,47 @@
+Scale -1 1 1
+
+LookAt 3.69558 -3.46243 3.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 0.895346
+#LookAt 10 0 0  0 0 0  0 0 1
+Camera "perspective" "float fov" [28.8415]
+Film "image"  "integer xresolution" [683] "integer yresolution" [512]
+    "string filename" "material-preview.exr"
+
+Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+
+SurfaceIntegrator "directlighting"
+
+WorldBegin
+
+AttributeBegin
+  # The order applies here is reversed from that in Mitsuba .xml
+  # Not sure why
+  Transform [ -0.224951 -0.974370 0 0 -0.000001 0 1 0 -0.974370 0.224951 -0.000001 0 0 0 8.87 1 ]
+  Rotate -180 0 1 0
+
+  # The following transformation aligns PBRT env map with Mitsuba
+  # Note we need to apply Mitsuba's light transform in .xml BEFORE the 
+  # following transform
+  Scale -1 1 1
+  Rotate 90 0 1 0
+  Rotate -90 1 0 0
+
+  LightSource 
+    "infinite" "integer nsamples" [4]
+  	           "string mapname" "textures/matpreview_latlong.exr"
+               "rgb L" [3 3 3]
+AttributeEnd
+
+AttributeBegin
+  Material "matte" "color Kd" [.5 .5 .5]
+  Transform [ 0.614046 -0.614047 0 0  0.614047 0.614046 0 0  0 0 0.868393 0 -1.78814e-07 2.08616e-07 1.02569 1 ]
+  Translate 0 0 0.01
+  Include "geometry/matpreview-base.pbrt"
+AttributeEnd
+
+AttributeBegin
+  Material "matte" "color Kd" [.5 .0 .5]
+  Translate 0 0 0.0252155
+  Include "geometry/matpreview-inner.pbrt"
+AttributeEnd
+
+WorldEnd
