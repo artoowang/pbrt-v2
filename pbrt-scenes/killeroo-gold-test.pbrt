@@ -10,16 +10,16 @@ LookAt 200 250 70   0 33 -50   0 0 1
 Camera "perspective" "float fov" [38]
 Film "image"  "integer xresolution" [512] "integer yresolution" [512]
 #Film "image"  "integer xresolution" [128] "integer yresolution" [128]
-    "string filename" "killeroo-gold.exr"
+    "string filename" "killeroo-gold-test.exr"
 
-Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+Sampler "lowdiscrepancy" "integer pixelsamples" [64]
 #Sampler "random" "integer xsamples" [4] "integer ysamples" [4]
 #	"bool samepts" ["true"]
 
 #PixelFilter "box" "float xwidth" [.5 ] "float ywidth" [.5 ] 
 
-SurfaceIntegrator "directlighting"
-#SurfaceIntegrator "path" #"integer maxdepth" [2]
+#SurfaceIntegrator "directlighting"
+SurfaceIntegrator "path" #"integer maxdepth" [2]
 
 #Renderer "metropolis" "integer samplesperpixel" [32] 
 #    "bool dodirectseparately" ["false"]
@@ -31,8 +31,9 @@ WorldBegin
 AttributeBegin
   Scale 1 -1 1
   LightSource 
-    "infinite" "integer nsamples" [4]
+    "infinite" "integer nsamples" [1]
   	           "string mapname" "textures/skylight-morn.exr"
+               "color L" [3 3 3]
     #"distant" "point from" [0 -1 0]
     #          "point to" [0 0 0]
   #Material "matte" "color Kd" [0 0 0]
@@ -80,8 +81,10 @@ AttributeBegin
   #         "float roughness" [.008]
   #Material "ashikhmin" "color Ks" [.5 .5 .5]
   #                     "float roughness" [.008]
-  Material "ashikhmin" "color Ks" [1 1 1]
-                       "float roughness" [.08]
+  Material "ashikhmin" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+                       "color Ks" [1 1 1]
+                       "float roughness" [.008]
+                       "float index" [1.5]
                        "integer gridresolution" [32]
                        "bool tabulated" "true"
                        "integer tabulatedresolution" [64]
