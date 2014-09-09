@@ -50,12 +50,17 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
     else
         dgs = dgShading;
     BSDF *bsdf = BSDF_ALLOC(arena, BSDF)(dgs, dgGeom.nn);
+
+    Spectrum kd = mKd->Evaluate(dgs).Clamp();
+    if (!kd.IsBlack()) {
+        BxDF *diff = BSDF_ALLOC(arena, Lambertian)(kd);
+        bsdf->Add(diff);
+    }
+
+    float etat = mEtaT->Evaluate(dgs);
     Spectrum ks = mKs->Evaluate(dgs).Clamp();
     if (!ks.IsBlack()) {
-        // TODO: test
-        //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.f, 1.5f);
-        Fresnel *fresnel = BSDF_ALLOC(arena, FresnelNoOp);
-
+        Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.f, etat); // Note this is different from uber, which I think implements this wrong
         float rough = mRoughness->Evaluate(dgs);
 
         Ashikhmin *spec = NULL;
@@ -157,11 +162,13 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
     //AshikhminMaterial::testMIPMap();
     //TabulatedDistribution::test();
 
+    Reference<Texture<Spectrum> > Kd = mp.GetSpectrumTexture("Kd", Spectrum(0.25f));
     Reference<Texture<Spectrum> > Ks = mp.GetSpectrumTexture("Ks", Spectrum(0.25f));
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
+    Reference<Texture<float> > etat = mp.GetFloatTexture("index", 1.5f);
     Reference<Texture<float> > bumpMap = mp.GetFloatTextureOrNull("bumpmap");
 
-    AshikhminMaterial *mtl = new AshikhminMaterial(Ks, roughness, bumpMap);
+    AshikhminMaterial *mtl = new AshikhminMaterial(Kd, Ks, roughness, etat, bumpMap);
 
     // TODO: test
     AshikhminCache::sGridResolution = mp.FindInt("gridresolution", 32);

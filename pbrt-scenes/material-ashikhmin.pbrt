@@ -5,7 +5,7 @@ LookAt 3.69558 -3.46243 3.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 
 #LookAt 10 0 0  0 0 0  0 0 1
 Camera "perspective" "float fov" [28.8415]
 Film "image"  "integer xresolution" [683] "integer yresolution" [512]
-    "string filename" "material-preview.exr"
+    "string filename" "material-ashikhmin.exr"
 
 Sampler "lowdiscrepancy" "integer pixelsamples" [64]
 
@@ -30,19 +30,26 @@ AttributeBegin
   LightSource 
     "infinite" "integer nsamples" [1]
   	           "string mapname" "textures/matpreview_latlong.exr"
-               "rgb L" [3 3 3]
+               "rgb L" [1.5 1.5 1.5]
                #"string mapname" "textures/white.exr"
 AttributeEnd
 
 AttributeBegin
-  Material "uber" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
-                  #"color Kd" [0 0 0]
-                  #"color Ks" [0 0 0]
-                  #"color Kr" [1 1 1]
-                  "color Ks" [1 1 1]
-                  "color Kr" [0 0 0]
-                  "float roughness" [.001]
-                  "float index" [0.52631578947]     # This is (1/1.9). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+  #Material "uber" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+  #                "color Ks" [1 1 1]
+  #                "color Kr" [0 0 0]
+  #                "float roughness" [.01]
+  #                "float index" [0.66666666666]     # This is (1/1.5). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+
+  Material "ashikhmin" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+                       "color Ks" [1 1 1]
+                       "float roughness" [.01]
+                       "float index" [1.5]
+                       "integer gridresolution" [32]
+                       "bool tabulated" "true"
+                       "integer tabulatedresolution" [64]
+                       "bool useuniformsampling" "false"
+
   # Note the following transform includes the 0.01 translation along +Z 
   # left-multiplied into the transform, since we can't do anything before
   # "Transform" because it overwrites the current result. This is simply
