@@ -107,6 +107,42 @@ InterpolatedGrid::eval(float x, float y) const
 
 // ----------------------------------------------------------------------------
 
+void
+AshikhminDistribution::printUnitTestResults(void) const
+{
+    fprintf(stderr, "Running unit tests for %s\n", signature().c_str());
+    fprintf(stderr, "  Integrate D(wh) over wh (should be one): %f\n",
+            integrateD());
+    // Currently just use some arbitrary wo. Note the (0, 0, 1) is the
+    // local surface normal
+    const Vector wo = Normalize(Vector(1, -2, 3));
+    fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
+    fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
+            integratePdf(wo));
+    fprintf(stderr, "  Integrate Pdf(wo, wi) over wi using Sample_f() (should be one): %f\n",
+            integratePdfUsingMCSampling(wo));
+}
+
+float
+AshikhminDistribution::integrateD(void) const
+{
+    return 1.f;
+}
+
+float
+AshikhminDistribution::integratePdf(const Vector &wo) const
+{
+    return 1.f;
+}
+
+float
+AshikhminDistribution::integratePdfUsingMCSampling(const Vector &wo) const
+{
+    return 1.f;
+}
+
+// ----------------------------------------------------------------------------
+
 BlinnForAshikhmin::BlinnForAshikhmin(float e)
 {
     if (e > 10000.f || isnan(e)) {
@@ -413,6 +449,12 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
 
     // TODO: test
     fprintf(stderr, "%s created.\n", mSignature.c_str());
+    float pdfInt = 0.f;
+    for (int i = 0; i < thetaRes * phiRes; ++i) {
+        pdfInt += pdf[i];
+    }
+    pdfInt *= M_PI / thetaRes * 2.f * M_PI / phiRes;
+    fprintf(stderr, "PDF integrates to %f\n", pdfInt);
 }
 
 float
@@ -526,6 +568,10 @@ TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int the
         TabulatedDistribution *distribution = new TabulatedDistribution;   // TODO: is there a way to release them upon program exit?
         Assert(distribution != NULL); // TODO: error handling
         distribution->initFromDistribution(srcDistribution, thetaRes, phiRes);
+
+        // TODO: run unit tests
+        srcDistribution.printUnitTestResults();
+        distribution->printUnitTestResults();
 
         std::pair<TabulatedDistributionMap::iterator, bool> result =
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));

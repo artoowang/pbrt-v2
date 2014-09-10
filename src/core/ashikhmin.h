@@ -85,6 +85,14 @@ public:
                           float u1, float u2, float *pdf) const = 0;
     virtual float Pdf(const Vector &wo, const Vector &wi) const = 0;
     virtual string signature(void) const { return ""; }
+
+    void printUnitTestResults(void) const;
+
+protected:
+    // Following methods is for unit testing
+    float integrateD(void) const;
+    float integratePdf(const Vector &wo) const;
+    float integratePdfUsingMCSampling(const Vector &wo) const;
 };
 
 // D is normalized for sphere (instead of the projected hemisphere as in Blinn)
