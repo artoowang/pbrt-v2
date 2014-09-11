@@ -119,26 +119,78 @@ AshikhminDistribution::printUnitTestResults(void) const
     fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
     fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
             integratePdf(wo));
-    fprintf(stderr, "  Integrate Pdf(wo, wi) over wi using Sample_f() (should be one): %f\n",
-            integratePdfUsingMCSampling(wo));
 }
 
 float
 AshikhminDistribution::integrateD(void) const
 {
-    return 1.f;
+    // First dimension is phi, second theta
+    const double xmin[2] = {0, 0},
+                   xmax[2] = {2.f*M_PI, M_PI};
+    double val = 0.f, error = 0.f;
+    int ret = hcubature(1, DIntegrand, (void*)this,
+            2, xmin, xmax,
+            0, 0, sCubatureRelError,
+            ERROR_INDIVIDUAL, &val, &error);
+
+    Assert(ret == 0);
+
+    return val;
+}
+
+// ndim should be 2, fdim should be 1
+int
+AshikhminDistribution::DIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+        unsigned /*fdim*/, double *fval)
+{
+    const AshikhminDistribution *distribution =
+                reinterpret_cast<const AshikhminDistribution*>(fdata);
+    const float phi = x[0], theta = x[1];
+    const float costheta = cosf(theta),
+                 sintheta = sinf(theta);
+
+    Vector H = SphericalDirection(sintheta, costheta, phi);
+    fval[0] = distribution->D(H) * sintheta;
+
+    return 0;
 }
 
 float
 AshikhminDistribution::integratePdf(const Vector &wo) const
 {
-    return 1.f;
+    PdfIntegrandData data;
+    data.distribution = this;
+    data.wo = wo;
+
+    // First dimension is phi, second theta
+    const double xmin[2] = {0, 0},
+                   xmax[2] = {2.f*M_PI, M_PI};
+    double val = 0.f, error = 0.f;
+    int ret = hcubature(1, PdfIntegrand, (void*)&data,
+            2, xmin, xmax,
+            0, 0, sCubatureRelError,
+            ERROR_INDIVIDUAL, &val, &error);
+
+    Assert(ret == 0);
+
+    return val;
 }
 
-float
-AshikhminDistribution::integratePdfUsingMCSampling(const Vector &wo) const
+// ndim should be 2, fdim should be 1
+int
+AshikhminDistribution::PdfIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+        unsigned /*fdim*/, double *fval)
 {
-    return 1.f;
+    const PdfIntegrandData *data =
+                reinterpret_cast<const PdfIntegrandData*>(fdata);
+    const float phi = x[0], theta = x[1];
+    const float costheta = cosf(theta),
+                 sintheta = sinf(theta);
+
+    Vector wi = SphericalDirection(sintheta, costheta, phi);
+    fval[0] = data->distribution->Pdf(data->wo, wi) * sintheta;
+
+    return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -404,9 +456,10 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
     // We parse through the source distribution by a thetaRes x phiRes grid,
     // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
     // - data: the PDF (against half vector wh over sphere) returned by srcDistribution.D()
-    // - pdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
-    //        D(h) * sin(theta). This is the value used to drive Distribution1D
-    vector<float> data(thetaRes * phiRes), pdf(thetaRes * phiRes), pdfy(phiRes);
+    // - mPdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
+    //         D(h) * sin(theta). This is the value used to drive Distribution1D
+    vector<float> data(thetaRes * phiRes), pdfy(phiRes);
+    mPdf.resize(thetaRes * phiRes, 0.f);
     for (int y = 0; y < phiRes; ++y) {
         const float t = (y + 0.5f) / phiRes,
                     phi = 2.f * M_PI * t;
@@ -421,8 +474,9 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
             const float D = srcDistribution.D(h);
 
             data[y*thetaRes + x] = D;
-            pdf[y*thetaRes + x] = D * sintheta;
-            pdfy[y] += pdf[y*thetaRes + x];
+            float pdf = D * sintheta;
+            mPdf[y*thetaRes + x] = pdf;
+            pdfy[y] += pdf;
         }
     }
 
@@ -437,7 +491,7 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
 
     mThetaDists.resize(phiRes, NULL);
     for (int y = 0; y < phiRes; ++y) {
-        Distribution1D *dist = new Distribution1D(pdf.data() + y*thetaRes, thetaRes);
+        Distribution1D *dist = new Distribution1D(mPdf.data() + y*thetaRes, thetaRes);
         Assert(dist != NULL);
         mThetaDists[y] = dist;
     }
@@ -451,7 +505,7 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
     fprintf(stderr, "%s created.\n", mSignature.c_str());
     float pdfInt = 0.f;
     for (int i = 0; i < thetaRes * phiRes; ++i) {
-        pdfInt += pdf[i];
+        pdfInt += mPdf[i];
     }
     pdfInt *= M_PI / thetaRes * 2.f * M_PI / phiRes;
     fprintf(stderr, "PDF integrates to %f\n", pdfInt);

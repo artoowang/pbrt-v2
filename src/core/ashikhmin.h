@@ -92,7 +92,17 @@ protected:
     // Following methods is for unit testing
     float integrateD(void) const;
     float integratePdf(const Vector &wo) const;
-    float integratePdfUsingMCSampling(const Vector &wo) const;
+
+    static int DIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+                unsigned /*fdim*/, double *fval);
+    static int PdfIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
+                    unsigned /*fdim*/, double *fval);
+
+    struct PdfIntegrandData
+    {
+        const AshikhminDistribution *distribution;
+        Vector wo;
+    };
 };
 
 // D is normalized for sphere (instead of the projected hemisphere as in Blinn)
@@ -166,6 +176,7 @@ public:
 private:
     vector<Distribution1D*> mThetaDists;
     Distribution1D *mPhiDist;
+    vector<float> mPdf; // This could be combined with mPhiDist and mThetaDists if they allow access to the data
     InterpolatedGrid mData;
     string mSignature;
 
@@ -260,7 +271,8 @@ private:
     //       To avoid confusion, I have set its copy constructor to private
     const AshikhminCache &mCache;
 
-    struct GFactorIntegrandData {
+    struct GFactorIntegrandData
+    {
         const AshikhminDistribution *distribution;
         Vector v;
     };
