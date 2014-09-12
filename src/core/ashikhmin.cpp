@@ -34,6 +34,7 @@
 #include "ashikhmin.h"
 
 #include <sstream>
+#include <tiffio.h>     // For TIFF output
 
 // For numerical integration
 #include "cubature-1.0/cubature.h"
@@ -46,6 +47,52 @@ const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
 const float sSmallValue = 1e-6f;
 const bool sPrintGGrid = false;
+
+// ----------------------------------------------------------------------------
+
+void WriteTIFF(const char *name, float *rgba, int XRes, int YRes, bool hasAlpha)
+{
+    // Open 8-bit TIFF file for writing
+    TIFF *tiff = TIFFOpen(name, "w");
+    if (!tiff) {
+    fprintf(stderr, "Unable to open TIFF %s for writing", name);
+    return;
+    }
+
+    int nChannels = hasAlpha ? 4 : 3;
+    TIFFSetField(tiff, TIFFTAG_SAMPLESPERPIXEL, nChannels);
+    if (hasAlpha) {
+    short int extra[] = { EXTRASAMPLE_ASSOCALPHA };
+    TIFFSetField(tiff, TIFFTAG_EXTRASAMPLES, (short)1, extra);
+    }
+    // Write image resolution information
+    TIFFSetField(tiff, TIFFTAG_IMAGEWIDTH, XRes);
+    TIFFSetField(tiff, TIFFTAG_IMAGELENGTH, YRes);
+    TIFFSetField(tiff, TIFFTAG_BITSPERSAMPLE, 8);
+    TIFFSetField(tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+    // Set Generic TIFF Fields
+    TIFFSetField(tiff, TIFFTAG_ROWSPERSTRIP, 1);
+    TIFFSetField(tiff, TIFFTAG_XRESOLUTION, 1.f);
+    TIFFSetField(tiff, TIFFTAG_YRESOLUTION, 1.f);
+    TIFFSetField(tiff, TIFFTAG_RESOLUTIONUNIT, (short)1);
+    TIFFSetField(tiff, TIFFTAG_COMPRESSION, COMPRESSION_NONE);
+    TIFFSetField(tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+    TIFFSetField(tiff, TIFFTAG_ORIENTATION, (int)ORIENTATION_TOPLEFT);
+    // Write 8-bit scanlines
+    unsigned char *buf = new unsigned char[nChannels * XRes];
+    for (int y = 0; y < YRes; ++y) {
+    unsigned char *bufp = buf;
+    for (int x = 0; x < XRes; ++x) {
+        // Pack 8-bit pixels samples into buf
+        for (int s = 0; s < nChannels; ++s)
+        *bufp++ = (unsigned char)*rgba++;
+    }
+    TIFFWriteScanline(tiff, buf, y, 1);
+    }
+    // Close 8-bit TIFF file
+    delete[] buf;
+    TIFFClose(tiff);
+}
 
 // ----------------------------------------------------------------------------
 
@@ -119,6 +166,13 @@ AshikhminDistribution::printUnitTestResults(void) const
     fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
     fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
             integratePdf(wo));
+}
+
+void
+AshikhminDistribution::writePdfImage(int thetaRes, int phiRes, const string &filepath) const
+{
+    vector<float> pixels(thetaRes*phiRes*3, 0.f);
+    WriteTIFF(filepath.c_str(), pixels.data(), phiRes, thetaRes, false);
 }
 
 float
@@ -641,6 +695,7 @@ TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int the
         // TODO: run unit tests
         srcDistribution.printUnitTestResults();
         distribution->printUnitTestResults();
+        srcDistribution.writePdfImage(128, 128, srcDistribution.signature() + ".tif");
 
         std::pair<TabulatedDistributionMap::iterator, bool> result =
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));

@@ -87,6 +87,7 @@ public:
     virtual string signature(void) const { return ""; }
 
     void printUnitTestResults(void) const;
+    void writePdfImage(int thetaRes, int phiRes, const string &filepath) const;
 
 protected:
     // Following methods is for unit testing
