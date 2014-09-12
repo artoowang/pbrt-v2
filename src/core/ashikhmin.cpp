@@ -461,13 +461,11 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
     vector<float> data(thetaRes * phiRes), pdfy(phiRes);
     mPdf.resize(thetaRes * phiRes, 0.f);
     for (int y = 0; y < phiRes; ++y) {
-        const float t = (y + 0.5f) / phiRes,
-                    phi = 2.f * M_PI * t;
+        const float phi = 2.f * M_PI * (y + 0.5f) / phiRes;
         pdfy[y] = 0.f;
 
         for (int x = 0; x < thetaRes; ++x) {
-            const float s = (x + 0.5f) / thetaRes,
-                        theta = M_PI * s,
+            const float theta = M_PI * (x + 0.5f) / thetaRes,
                         costheta = cosf(theta),
                         sintheta = sinf(theta);
             const Vector &h = SphericalDirection(sintheta, costheta, phi);
@@ -581,8 +579,25 @@ TabulatedDistribution::Pdf(const Vector &wo, const Vector &wi) const
 {
     const Vector wh = Normalize(wo + wi);
     const float dotHO = Dot(wh, wo);
+
     if (dotHO > 0.f) {
-        return D(wh) / (4.f * dotHO);
+        const float theta = SphericalTheta(wh),
+                    phi = SphericalPhi(wh);
+        const int thetaRes = mData.getXResolution(),
+                  phiRes = mData.getYResolution();
+        const int x = std::min(std::max((int)(theta/M_PI * thetaRes), 0), thetaRes-1),
+                  y = std::min(std::max((int)(phi/(2.f*M_PI) * phiRes), 0), phiRes-1);
+        // Notice we don't use the sin(theta) to transform PDF. Instead we use
+        // the theta at the center of the cell. This also avoids sin(theta) = 0
+        const float sintheta = sinf(M_PI * (x + 0.5f) / thetaRes);
+
+        // Transform pdf against (theta, phi) space to solid angle space
+        const float Dval = mPdf[y*thetaRes + x] / sintheta;
+        // Transform pdf against wh to wi
+        return Dval / (4.f * dotHO);
+        //fprintf(stderr, "%f %f\n", D(wh), Dval);
+        //return D(wh) / (4.f * dotHO);
+
     } else {
         // It should be very unlikely we are here, but let's check anyway
         return 0.f;
