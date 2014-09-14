@@ -88,6 +88,7 @@ public:
 
     void printUnitTestResults(void) const;
     void writePdfImage(const Vector &wo, int thetaRes, int phiRes, const string &filepath) const;
+    void writeDImage(int thetaRes, int phiRes, const string &filepath) const;
 
 protected:
     // Following methods is for unit testing

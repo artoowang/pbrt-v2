@@ -43,7 +43,7 @@ AttributeBegin
 
   Material "ashikhmin" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
                        "color Ks" [1 1 1]
-                       "float roughness" [.001]
+                       "float roughness" [.01]
                        "float index" [1.5]
                        "integer gridresolution" [32]
                        "bool tabulated" "true"

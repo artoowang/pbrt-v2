@@ -211,8 +211,9 @@ AshikhminDistribution::printUnitTestResults(void) const
     fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
             integratePdf(wo));
 
-    // Output PDF image
-    writePdfImage(wo, 512, 512, signature() + ".exr");
+    // Output PDF/D images
+    writePdfImage(wo, 512, 512, signature() + ".pdf.exr");
+    writeDImage(512, 512, signature() + ".D.exr");
 }
 
 void
@@ -221,7 +222,6 @@ AshikhminDistribution::writePdfImage(const Vector &wo, int thetaRes, int phiRes,
     vector<float> data(thetaRes * phiRes, 0.f);
 
     // Fill in the PDF values
-    // TODO: should we output PDF against solid angle, or against theta, phi?
     for (int y = 0; y < thetaRes; ++y) {
         const float theta = M_PI * (y + 0.5f) / thetaRes,
                                 costheta = cosf(theta),
@@ -231,6 +231,33 @@ AshikhminDistribution::writePdfImage(const Vector &wo, int thetaRes, int phiRes,
             const float phi = 2.f * M_PI * (x + 0.5f) / phiRes;
             const Vector &wi = SphericalDirection(sintheta, costheta, phi);
             data[y*thetaRes + x] = Pdf(wo, wi);
+        }
+    }
+
+    // Convert to 3 channels
+    vector<float> pixels(thetaRes * phiRes * 3, 0.f);
+    for (int i = 0; i < thetaRes * phiRes; ++i) {
+        pixels[i*3] = pixels[i*3+1] = pixels[i*3+2] = data[i];
+    }
+
+    WriteEXR(filepath.c_str(), pixels.data(), phiRes, thetaRes, false);
+}
+
+void
+AshikhminDistribution::writeDImage(int thetaRes, int phiRes, const string &filepath) const
+{
+    vector<float> data(thetaRes * phiRes, 0.f);
+
+    // Fill in the D values
+    for (int y = 0; y < thetaRes; ++y) {
+        const float theta = M_PI * (y + 0.5f) / thetaRes,
+                                costheta = cosf(theta),
+                                sintheta = sinf(theta);
+
+        for (int x = 0; x < phiRes; ++x) {
+            const float phi = 2.f * M_PI * (x + 0.5f) / phiRes;
+            const Vector &wh = SphericalDirection(sintheta, costheta, phi);
+            data[y*thetaRes + x] = D(wh);
         }
     }
 
