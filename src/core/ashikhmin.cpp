@@ -34,7 +34,15 @@
 #include "ashikhmin.h"
 
 #include <sstream>
+
+// TODO: remove if not used
 #include <tiffio.h>     // For TIFF output
+
+// For EXR support
+#include <ImfOutputFile.h>
+#include <ImfChannelList.h>
+#include <ImfFrameBuffer.h>
+#include <half.h>
 
 // For numerical integration
 #include "cubature-1.0/cubature.h"
@@ -43,6 +51,10 @@
 
 using std::stringstream;
 
+// For EXR support
+using namespace Imf;
+using namespace Imath;
+
 const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
 const float sSmallValue = 1e-6f;
@@ -50,6 +62,38 @@ const bool sPrintGGrid = false;
 
 // ----------------------------------------------------------------------------
 
+// Copied from tifftoexr.cpp
+void WriteEXR(const char *name, float *frgba, int xRes, int yRes, bool hasAlpha)
+{
+    Header header(xRes, yRes);
+    header.channels().insert("R", Channel (HALF));
+    header.channels().insert("G", Channel (HALF));
+    header.channels().insert("B", Channel (HALF));
+    if (hasAlpha)
+    header.channels().insert("A", Channel (HALF));
+    int stride = hasAlpha ? 4 : 3;
+
+    half *rgba = new half[xRes*yRes * stride];
+    for (int i = 0; i < xRes*yRes * stride; ++i)
+    rgba[i] = frgba[i];
+
+    FrameBuffer fb;
+    fb.insert("R", Slice(HALF, (char *)rgba, stride*sizeof(half),
+             stride*xRes*sizeof(half)));
+    fb.insert("G", Slice(HALF, (char *)rgba+sizeof(half), stride*sizeof(half),
+             stride*xRes*sizeof(half)));
+    fb.insert("B", Slice(HALF, (char *)rgba+2*sizeof(half), stride*sizeof(half),
+             stride*xRes*sizeof(half)));
+    if (hasAlpha)
+    fb.insert("A", Slice(HALF, (char *)rgba+3*sizeof(half), stride*sizeof(half),
+                 stride*xRes*sizeof(half)));
+
+    OutputFile file(name, header);
+    file.setFrameBuffer(fb);
+    file.writePixels(yRes);
+}
+
+// rgba: [0, 255]
 void WriteTIFF(const char *name, float *rgba, int XRes, int YRes, bool hasAlpha)
 {
     // Open 8-bit TIFF file for writing
@@ -166,13 +210,37 @@ AshikhminDistribution::printUnitTestResults(void) const
     fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
     fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
             integratePdf(wo));
+
+    // Output PDF image
+    writePdfImage(wo, 512, 512, signature() + ".exr");
 }
 
 void
-AshikhminDistribution::writePdfImage(int thetaRes, int phiRes, const string &filepath) const
+AshikhminDistribution::writePdfImage(const Vector &wo, int thetaRes, int phiRes, const string &filepath) const
 {
-    vector<float> pixels(thetaRes*phiRes*3, 0.f);
-    WriteTIFF(filepath.c_str(), pixels.data(), phiRes, thetaRes, false);
+    vector<float> data(thetaRes * phiRes, 0.f);
+
+    // Fill in the PDF values
+    // TODO: should we output PDF against solid angle, or against theta, phi?
+    for (int y = 0; y < thetaRes; ++y) {
+        const float theta = M_PI * (y + 0.5f) / thetaRes,
+                                costheta = cosf(theta),
+                                sintheta = sinf(theta);
+
+        for (int x = 0; x < phiRes; ++x) {
+            const float phi = 2.f * M_PI * (x + 0.5f) / phiRes;
+            const Vector &wi = SphericalDirection(sintheta, costheta, phi);
+            data[y*thetaRes + x] = Pdf(wo, wi);
+        }
+    }
+
+    // Convert to 3 channels
+    vector<float> pixels(thetaRes * phiRes * 3, 0.f);
+    for (int i = 0; i < thetaRes * phiRes; ++i) {
+        pixels[i*3] = pixels[i*3+1] = pixels[i*3+2] = data[i];
+    }
+
+    WriteEXR(filepath.c_str(), pixels.data(), phiRes, thetaRes, false);
 }
 
 float
@@ -182,7 +250,10 @@ AshikhminDistribution::integrateD(void) const
     const double xmin[2] = {0, 0},
                    xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
-    int ret = hcubature(1, DIntegrand, (void*)this,
+#ifdef DEBUG
+    int ret =
+#endif
+    hcubature(1, DIntegrand, (void*)this,
             2, xmin, xmax,
             0, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
@@ -220,7 +291,10 @@ AshikhminDistribution::integratePdf(const Vector &wo) const
     const double xmin[2] = {0, 0},
                    xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
-    int ret = hcubature(1, PdfIntegrand, (void*)&data,
+#ifdef DEBUG
+    int ret =
+#endif
+    hcubature(1, PdfIntegrand, (void*)&data,
             2, xmin, xmax,
             0, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
@@ -649,6 +723,8 @@ TabulatedDistribution::Pdf(const Vector &wo, const Vector &wi) const
         const float Dval = mPdf[y*thetaRes + x] / sintheta;
         // Transform pdf against wh to wi
         return Dval / (4.f * dotHO);
+
+        // TODO: old computations
         //fprintf(stderr, "%f %f\n", D(wh), Dval);
         //return D(wh) / (4.f * dotHO);
 
@@ -695,7 +771,6 @@ TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int the
         // TODO: run unit tests
         srcDistribution.printUnitTestResults();
         distribution->printUnitTestResults();
-        srcDistribution.writePdfImage(128, 128, srcDistribution.signature() + ".tif");
 
         std::pair<TabulatedDistributionMap::iterator, bool> result =
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
@@ -975,7 +1050,10 @@ Ashikhmin::computeAverageNH(const AshikhminDistribution &distribution)
     const double xmin[2] = {0, 0},
                  xmax[2] = {2.f*M_PI, 0.5f*M_PI};
     double val = 0.f, error = 0.f;
-    int ret = hcubature(1, averageNHIntegrand, (void*)&distribution,
+#ifdef DEBUG
+    int ret =
+#endif
+    hcubature(1, averageNHIntegrand, (void*)&distribution,
             2, xmin, xmax,
             0, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
@@ -1031,7 +1109,10 @@ Ashikhmin::computeGFactor(const Vector &v, const AshikhminDistribution &distribu
     const double xmin[2] = {0, 0},
                  xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
-    int ret = hcubature(1, gFactorIntegrand, (void*)&data,
+#ifdef DEBUG
+    int ret =
+#endif
+    hcubature(1, gFactorIntegrand, (void*)&data,
             2, xmin, xmax,
             0, sCubatureAbsError, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
