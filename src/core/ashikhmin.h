@@ -124,41 +124,6 @@ private:
     float exponent;
 };
 
-// TODO: remove
-class TabulatedDistributionTest : public AshikhminDistribution
-{
-public:
-    virtual ~TabulatedDistributionTest();
-    virtual float D(const Vector &wh) const;
-    virtual void Sample_f(const Vector &wi, Vector *sampled_f, float u1, float u2, float *pdf) const;
-    virtual float Pdf(const Vector &wi, const Vector &wo) const;
-    virtual string signature(void) const;
-
-    static const TabulatedDistributionTest& get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
-
-private:
-    Distribution1D *mDistribution;
-    InterpolatedGrid mData;
-    string mSignature;
-
-    // Object is only created by static member function
-    TabulatedDistributionTest();
-
-    void initFromDistribution(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
-
-    typedef map<string, TabulatedDistributionTest*> TabulatedDistributionMap;
-    static TabulatedDistributionMap sCache;
-    static boost::mutex sMutex;
-
-    static string buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
-    // TODO
-    //static const string& buildSignature(const string &filename, int thetaRes, int phiRes);
-
-    // Do not allow copy
-    TabulatedDistributionTest(const TabulatedDistributionTest&);
-    TabulatedDistributionTest& operator=(const TabulatedDistributionTest&);
-};
-
 class TabulatedDistribution : public AshikhminDistribution
 {
 public:
@@ -168,6 +133,8 @@ public:
     virtual float Pdf(const Vector &wi, const Vector &wo) const;
     virtual string signature(void) const;
 
+    void saveToFile(const string &filePath) const;
+
     static const TabulatedDistribution& get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
     // TODO
     //static const TabulatedDistribution& get(const string &filename, int thetaRes, int phiRes);
@@ -176,6 +143,7 @@ public:
     static void test(void);
 
 private:
+    int mThetaRes, mPhiRes;
     vector<Distribution1D*> mThetaDists;
     Distribution1D *mPhiDist;
     vector<float> mPdf; // This could be combined with mPhiDist and mThetaDists if they allow access to the data
@@ -184,9 +152,28 @@ private:
 
     // Object is only created by static member function
     TabulatedDistribution();
+    // Do not allow copy
+    TabulatedDistribution(const TabulatedDistribution&);
+    TabulatedDistribution& operator=(const TabulatedDistribution&);
 
     void initFromDistribution(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
+    void initFromFile(const string &filePath);
 
+    // Utility functions
+    int getThetaRes(void) const { Assert(mThetaRes > 0); return mThetaRes; }
+    int getPhiRes(void) const { Assert(mThetaRes > 0); return mPhiRes; }
+    // The following two functions return the theta/phi value of the specified
+    // cell. (Return the center of the cell by default.)
+    float indexToTheta(int i, float offset = 0.5f) const { return M_PI * (i + offset) / getThetaRes(); }
+    float indexToPhi(int i, float offset = 0.5f) const { return 2.f * M_PI * (i + offset) / getPhiRes(); }
+    // The following two functions return the index of the cell where the
+    // theta/phi value resides
+    int thetaToIndex(float theta) const { return std::min(std::max((int)(theta/M_PI * getThetaRes()), 0), getThetaRes()-1); }
+    int phiToIndex(float phi) const { return std::min(std::max((int)(phi/(2.f*M_PI) * getPhiRes()), 0), getPhiRes()-1); }
+    // We use theta as the 1st dimension
+    int gridIndex(int thetaIndex, int phiIndex) const { return phiIndex * getThetaRes() + thetaIndex; }
+
+    // Static
     typedef map<string, TabulatedDistribution*> TabulatedDistributionMap;
     static TabulatedDistributionMap sCache;
     static boost::mutex sMutex;
@@ -194,10 +181,6 @@ private:
     static string buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
     // TODO
     //static const string& buildSignature(const string &filename, int thetaRes, int phiRes);
-
-    // Do not allow copy
-    TabulatedDistribution(const TabulatedDistribution&);
-    TabulatedDistribution& operator=(const TabulatedDistribution&);
 };
 
 

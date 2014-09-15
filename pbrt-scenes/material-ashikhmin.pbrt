@@ -7,7 +7,7 @@ Camera "perspective" "float fov" [28.8415]
 Film "image"  "integer xresolution" [683] "integer yresolution" [512]
     "string filename" "material-ashikhmin.exr"
 
-Sampler "lowdiscrepancy" "integer pixelsamples" [64]
+Sampler "lowdiscrepancy" "integer pixelsamples" [16]
 
 #SurfaceIntegrator "directlighting"
 SurfaceIntegrator "path"
