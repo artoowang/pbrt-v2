@@ -45,8 +45,10 @@ public:
                       Reference<Texture<Spectrum> > ks,
                       Reference<Texture<float> > rough,
                       Reference<Texture<float> > etat,
-                      Reference<Texture<float> > bump)
-        : mKd(kd), mKs(ks), mRoughness(rough), mEtaT(etat), mBumpMap(bump)
+                      Reference<Texture<float> > bump,
+                      const string &ndfFilePath)
+        : mKd(kd), mKs(ks), mRoughness(rough), mEtaT(etat), mBumpMap(bump),
+          mNDFFilePath(ndfFilePath)
     { }
     BSDF *GetBSDF(const DifferentialGeometry &dgGeom,
                   const DifferentialGeometry &dgShading,
@@ -62,6 +64,7 @@ public:
 private:
     Reference<Texture<Spectrum> > mKd, mKs;
     Reference<Texture<float> > mRoughness, mEtaT, mBumpMap;
+    string mNDFFilePath;
 
     static float testMIPMapFunc(float x, float y);
 };

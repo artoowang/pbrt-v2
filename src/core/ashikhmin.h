@@ -136,8 +136,7 @@ public:
     void saveToFile(const string &filePath) const;
 
     static const TabulatedDistribution& get(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
-    // TODO
-    //static const TabulatedDistribution& get(const string &filename, int thetaRes, int phiRes);
+    static const TabulatedDistribution& get(const string &filename);
 
     // TODO: for test
     static void test(void);

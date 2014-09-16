@@ -279,7 +279,7 @@ AshikhminDistribution::integrateD(void) const
 {
     // First dimension is phi, second theta
     const double xmin[2] = {0, 0},
-                   xmax[2] = {2.f*M_PI, M_PI};
+                 xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
 #ifdef DEBUG
     int ret =
@@ -303,7 +303,7 @@ AshikhminDistribution::DIntegrand(unsigned /*ndim*/, const double *x, void *fdat
                 reinterpret_cast<const AshikhminDistribution*>(fdata);
     const float phi = x[0], theta = x[1];
     const float costheta = cosf(theta),
-                 sintheta = sinf(theta);
+                sintheta = sinf(theta);
 
     Vector H = SphericalDirection(sintheta, costheta, phi);
     fval[0] = distribution->D(H) * sintheta;
@@ -320,7 +320,7 @@ AshikhminDistribution::integratePdf(const Vector &wo) const
 
     // First dimension is phi, second theta
     const double xmin[2] = {0, 0},
-                   xmax[2] = {2.f*M_PI, M_PI};
+                 xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
 #ifdef DEBUG
     int ret =
@@ -550,13 +550,15 @@ TabulatedDistribution::initFromFile(const string &filePath)
     mThetaRes = thetaRes;
     mPhiRes = phiRes;
 
-    // Read data
+    // Read NDF table
     vector<float> dGrid(mThetaRes * mPhiRes);
     for (int t = 0; t < mThetaRes; ++t) {
         for (int p = 0; p < mPhiRes; ++p) {
             ifs >> dGrid[gridIndex(t, p)];
         }
     }
+
+    // TODO: normalize the NDF table?
 
     // TODO: use absolute path?
     mSignature = buildSignature(filePath);
@@ -725,6 +727,40 @@ TabulatedDistribution::get(const AshikhminDistribution &srcDistribution, int the
 
         // TODO: test saveToFile
         distribution->saveToFile(distribution->signature() + ".txt");
+
+        std::pair<TabulatedDistributionMap::iterator, bool> result =
+                sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));
+        Assert(result.second == true);
+        Assert(result.first->second != NULL);
+        Assert(distribution->signature() == signature);
+
+        return *(result.first->second);
+    }
+}
+
+const TabulatedDistribution&
+TabulatedDistribution::get(const string &filePath)
+{
+    boost::mutex::scoped_lock scopedLock(sMutex);
+    TabulatedDistributionMap::const_iterator it;
+    const string &signature = buildSignature(filePath);
+
+    if ((it = sCache.find(signature)) != sCache.end()) {
+        // Return cached result
+        Assert(it->second != NULL);
+        return *(it->second);
+
+    } else {
+        // Create a new TabulatedDistribution
+        TabulatedDistribution *distribution = new TabulatedDistribution;   // TODO: is there a way to release them upon program exit?
+        Assert(distribution != NULL); // TODO: error handling
+        distribution->initFromFile(filePath);
+
+        // TODO: run unit tests
+        distribution->printUnitTestResults();
+
+        // TODO: test saveToFile
+        distribution->saveToFile(distribution->signature() + ".duplicated.txt");
 
         std::pair<TabulatedDistributionMap::iterator, bool> result =
                 sCache.insert(TabulatedDistributionMap::value_type(distribution->signature(), distribution));

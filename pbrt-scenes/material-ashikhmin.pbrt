@@ -49,6 +49,7 @@ AttributeBegin
                        "bool tabulated" "true"
                        "integer tabulatedresolution" [64]
                        "bool useuniformsampling" "false"
+                       "string ndffilepath" "test.txt"
 
   # Note the following transform includes the 0.01 translation along +Z 
   # left-multiplied into the transform, since we can't do anything before

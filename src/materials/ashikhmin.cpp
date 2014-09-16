@@ -67,9 +67,18 @@ BSDF *AshikhminMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
 
         // TODO: test
         if (mTabulated) {
-            BlinnForAshikhmin blinn(1.f / rough);
-            const AshikhminDistribution &distribution = TabulatedDistribution::get(blinn, mTabulatedRes, mTabulatedRes);
-            spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+            if (mNDFFilePath.length() > 0) {
+                // Load NDF table from file (note mTabulatedRes is ignored)
+                const AshikhminDistribution &distribution = TabulatedDistribution::get(mNDFFilePath);
+                spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+
+            } else {
+                // Build NDF table from distribution
+                BlinnForAshikhmin blinn(1.f / rough);
+                const AshikhminDistribution &distribution = TabulatedDistribution::get(blinn, mTabulatedRes, mTabulatedRes);
+                spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
+            }
+
         } else {
             const AshikhminDistribution &distribution = *(BSDF_ALLOC(arena, BlinnForAshikhmin)(1.f / rough));
             spec = BSDF_ALLOC(arena, Ashikhmin)(ks, fresnel, distribution);
@@ -167,8 +176,9 @@ AshikhminMaterial *CreateAshikhminMaterial(const Transform &xform,
     Reference<Texture<float> > roughness = mp.GetFloatTexture("roughness", .1f);
     Reference<Texture<float> > etat = mp.GetFloatTexture("index", 1.5f);
     Reference<Texture<float> > bumpMap = mp.GetFloatTextureOrNull("bumpmap");
+    string ndfFilePath = mp.FindString("ndffilepath", "");
 
-    AshikhminMaterial *mtl = new AshikhminMaterial(Kd, Ks, roughness, etat, bumpMap);
+    AshikhminMaterial *mtl = new AshikhminMaterial(Kd, Ks, roughness, etat, bumpMap, ndfFilePath);
 
     // TODO: test
     AshikhminCache::sGridResolution = mp.FindInt("gridresolution", 32);
