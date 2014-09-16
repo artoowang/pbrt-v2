@@ -52,6 +52,7 @@
 
 using std::stringstream;
 using std::ofstream;
+using std::ifstream;
 using std::endl;
 
 // For EXR support
@@ -447,34 +448,20 @@ TabulatedDistribution::~TabulatedDistribution()
 }
 
 void
-TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
+TabulatedDistribution::init(const vector<float> &dGrid)
 {
-    // Currently we haven't implemented repeated initialization
-    Assert(mThetaRes == 0 && mPhiRes == 0 && mPhiDist == NULL);
-
-    mThetaRes = thetaRes;
-    mPhiRes = phiRes;
-
-    // We parse through the source distribution by a thetaRes x phiRes grid,
-    // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
-    // - data: the PDF (against half vector wh over sphere) returned by srcDistribution.D()
+    // Compute mPdf using given dGrid (grid of D values, i.e., the PDF against
+    // solid angle over sphere).
     // - mPdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
     //         D(h) * sin(theta). This is the value used to drive Distribution1D
-    vector<float> data(thetaRes * phiRes), pdfp(phiRes);
-    mPdf.resize(thetaRes * phiRes, 0.f);
-    for (int p = 0; p < phiRes; ++p) {
-        const float phi = indexToPhi(p);
+    vector<float> pdfp(mPhiRes);
+    mPdf.resize(mThetaRes * mPhiRes, 0.f);
+    for (int p = 0; p < mPhiRes; ++p) {
         pdfp[p] = 0.f;
-
-        for (int t = 0; t < thetaRes; ++t) {
+        for (int t = 0; t < mThetaRes; ++t) {
             const float theta = indexToTheta(t),
-                        costheta = cosf(theta),
                         sintheta = sinf(theta);
-            const Vector &h = SphericalDirection(sintheta, costheta, phi);
-            const float D = srcDistribution.D(h);
-
-            data[gridIndex(t, p)] = D;
-            float pdf = D * sintheta;
+            float pdf = dGrid[gridIndex(t, p)] * sintheta;
             mPdf[gridIndex(t, p)] = pdf;
             pdfp[p] += pdf;
         }
@@ -484,31 +471,59 @@ TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDist
     // We first sample against phi using pdfp, then sample against theta using pdf+y*thetaRes
     // This utilizes both 2D samples (u1 and u2) and works with Halton sequence and
     // lowdiscrepency sampler. See Sample_f()
-    Assert(mThetaDists.size() == 0 && mPhiDist == NULL);
-
-    mPhiDist = new Distribution1D(pdfp.data(), phiRes);
+    mPhiDist = new Distribution1D(pdfp.data(), mPhiRes);
     Assert(mPhiDist != NULL);
 
-    mThetaDists.resize(phiRes, NULL);
-    for (int p = 0; p < phiRes; ++p) {
-        Distribution1D *dist = new Distribution1D(mPdf.data() + gridIndex(0, p), thetaRes);
+    mThetaDists.resize(mPhiRes, NULL);
+    for (int p = 0; p < mPhiRes; ++p) {
+        Distribution1D *dist = new Distribution1D(mPdf.data() + gridIndex(0, p), mThetaRes);
         Assert(dist != NULL);
         mThetaDists[p] = dist;
     }
 
     // The actual PDF of wh in sphere domain
-    mData.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, data);
-
-    mSignature = buildSignature(srcDistribution, thetaRes, phiRes);
+    mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, dGrid);
 
     // TODO: test
     fprintf(stderr, "%s created.\n", mSignature.c_str());
     float pdfInt = 0.f;
-    for (int i = 0; i < thetaRes * phiRes; ++i) {
+    for (int i = 0; i < mThetaRes * mPhiRes; ++i) {
         pdfInt += mPdf[i];
     }
-    pdfInt *= M_PI / thetaRes * 2.f * M_PI / phiRes;
+    pdfInt *= M_PI / mThetaRes * 2.f * M_PI / mPhiRes;
     fprintf(stderr, "PDF integrates to %f\n", pdfInt);
+}
+
+void
+TabulatedDistribution::initFromDistribution(const AshikhminDistribution& srcDistribution, int thetaRes, int phiRes)
+{
+    // Currently we haven't implemented repeated initialization
+    Assert(mThetaRes == 0
+            && mPhiRes == 0
+            && mPhiDist == NULL
+            && mThetaDists.size() == 0);
+
+    // This needs to be done before any of the utility functions can work
+    mThetaRes = thetaRes;
+    mPhiRes = phiRes;
+    mSignature = buildSignature(srcDistribution, thetaRes, phiRes);
+
+    // We parse through the source distribution by a thetaRes x phiRes grid,
+    // over [0,pi] x [0,2*pi]. The samples are sampled at the center of each cell
+    // - dGrid: the PDF (against half vector wh over sphere) returned by srcDistribution.D()
+    vector<float> dGrid(thetaRes * phiRes);
+    for (int t = 0; t < thetaRes; ++t) {
+        const float theta = indexToTheta(t),
+                    costheta = cosf(theta),
+                    sintheta = sinf(theta);
+        for (int p = 0; p < phiRes; ++p) {
+            const float phi = indexToPhi(p);
+            const Vector &h = SphericalDirection(sintheta, costheta, phi);
+            dGrid[gridIndex(t, p)] = srcDistribution.D(h);
+        }
+    }
+
+    init(dGrid);
 }
 
 void
@@ -517,7 +532,36 @@ TabulatedDistribution::initFromFile(const string &filePath)
     // Currently we haven't implemented repeated initialization
     Assert(mThetaRes == 0 && mPhiRes == 0 && mPhiDist == NULL);
 
-    // TODO
+    ifstream ifs;
+    ifs.open(filePath.c_str());
+    if (!ifs) {
+        fprintf(stderr, "Failed to open %s\n", filePath.c_str());
+        return;
+    }
+
+    // Read resolution
+    int thetaRes = 0, phiRes = 0;
+    ifs >> thetaRes >> phiRes;
+    if (thetaRes <= 0 || phiRes <= 0) {
+        fprintf(stderr, "Invalid resolution from %s: %d x %d\n",
+                filePath.c_str(), thetaRes, phiRes);
+        return;
+    }
+    mThetaRes = thetaRes;
+    mPhiRes = phiRes;
+
+    // Read data
+    vector<float> dGrid(mThetaRes * mPhiRes);
+    for (int t = 0; t < mThetaRes; ++t) {
+        for (int p = 0; p < mPhiRes; ++p) {
+            ifs >> dGrid[gridIndex(t, p)];
+        }
+    }
+
+    // TODO: use absolute path?
+    mSignature = buildSignature(filePath);
+
+    init(dGrid);
 }
 
 float
@@ -625,6 +669,11 @@ TabulatedDistribution::saveToFile(const string &filePath) const
 
     ofs.open(filePath.c_str());
 
+    if (!ofs) {
+        fprintf(stderr, "Failed to open %s\n", filePath.c_str());
+        return;
+    }
+
     const int thetaRes = getThetaRes(),
               phiRes = getPhiRes();
     ofs << boost::format("%d %d") % thetaRes % phiRes << endl;
@@ -636,18 +685,20 @@ TabulatedDistribution::saveToFile(const string &filePath) const
         }
         ofs << endl;
     }
-
-    ofs.close();
 }
 
 string
 TabulatedDistribution::buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes)
 {
-    stringstream ss;
-    ss << "TabulatedDistribution:"
-            << srcDistribution.signature() << ":"
-            << thetaRes << "x" << phiRes;
-    return ss.str();
+    return boost::str(boost::format("TabulatedDistribution:%s:%dx%d")
+            % srcDistribution.signature()
+            % thetaRes % phiRes);
+}
+
+string
+TabulatedDistribution::buildSignature(const string &filePath)
+{
+    return boost::str(boost::format("TabulatedDistribution:%s") % filePath.c_str());
 }
 
 const TabulatedDistribution&

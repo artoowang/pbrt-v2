@@ -156,6 +156,7 @@ private:
     TabulatedDistribution(const TabulatedDistribution&);
     TabulatedDistribution& operator=(const TabulatedDistribution&);
 
+    void init(const vector<float> &dGrid);
     void initFromDistribution(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
     void initFromFile(const string &filePath);
 
@@ -179,8 +180,7 @@ private:
     static boost::mutex sMutex;
 
     static string buildSignature(const AshikhminDistribution &srcDistribution, int thetaRes, int phiRes);
-    // TODO
-    //static const string& buildSignature(const string &filename, int thetaRes, int phiRes);
+    static string buildSignature(const string &filePath);
 };
 
 
