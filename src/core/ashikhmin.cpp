@@ -212,7 +212,7 @@ AshikhminDistribution::printUnitTestResults(void) const
     // local surface normal
     const Vector wo = Normalize(Vector(1, -2, 3));
     fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
-    fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one): %f\n",
+    fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one, unless Pdf is too peaky and is zero around normal): %f\n",
             integratePdf(wo));
 
     // Output PDF/D images
@@ -450,20 +450,40 @@ TabulatedDistribution::~TabulatedDistribution()
 void
 TabulatedDistribution::init(const vector<float> &dGrid)
 {
-    // Compute mPdf using given dGrid (grid of D values, i.e., the PDF against
+    Assert(dGrid.size() == mThetaRes * mPhiRes);
+
+    // Normalization
+    // Note: in order to use integrateD(), we need to initialize mData
+    mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, dGrid);
+    float intD = integrateD();
+    fprintf(stderr, "D integrates to %f, rescaling...\n", intD);
+    // Rescaling
+    vector<float> scaledDGrid(mPhiRes * mThetaRes);
+    for (int i = 0; i < mPhiRes * mThetaRes; ++i) {
+        scaledDGrid[i] = dGrid[i] / intD;
+    }
+
+    // The actual PDF of wh in sphere domain
+    mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, scaledDGrid);
+    intD = integrateD();
+    fprintf(stderr, "Scaled D integrates to %f (should be close to one)\n", intD);
+
+    // Compute mPdf using given scaledDGrid (grid of D values, i.e., the PDF against
     // solid angle over sphere).
     // - mPdf: the PDF against 2D pair (theta, phi) over [0,pi] x [0,2*pi], which is
     //         D(h) * sin(theta). This is the value used to drive Distribution1D
     vector<float> pdfp(mPhiRes);
+    float pdfSum = 0.f;
     mPdf.resize(mThetaRes * mPhiRes, 0.f);
     for (int p = 0; p < mPhiRes; ++p) {
         pdfp[p] = 0.f;
         for (int t = 0; t < mThetaRes; ++t) {
             const float theta = indexToTheta(t),
                         sintheta = sinf(theta);
-            float pdf = dGrid[gridIndex(t, p)] * sintheta;
+            float pdf = scaledDGrid[gridIndex(t, p)] * sintheta;
             mPdf[gridIndex(t, p)] = pdf;
             pdfp[p] += pdf;
+            pdfSum += pdf;
         }
     }
 
@@ -481,17 +501,21 @@ TabulatedDistribution::init(const vector<float> &dGrid)
         mThetaDists[p] = dist;
     }
 
-    // The actual PDF of wh in sphere domain
-    mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, dGrid);
-
-    // TODO: test
-    fprintf(stderr, "%s created.\n", mSignature.c_str());
-    float pdfInt = 0.f;
+    // Finally, we should normalize the mPdf so its integration over
+    // (theta, phi) goes to one. Notice this integration is easier than
+    // that of D(h) because there is no interpolation involves. (See Pdf())
+    // Therefore, we just multiply the sum of all mPdf values by the cell area,
+    // M_PI / mThetaRes * 2.f * M_PI / mPhiRes
+    // The reason that mPdf doesn't already integrate to one is because of the
+    // discretization.
+    float pdfInt = pdfSum * (M_PI / mThetaRes * 2.f * M_PI / mPhiRes);
+    fprintf(stderr, "PDF integrates to %f. Corrected to one\n", pdfInt);
+    Assert(pdfInt > 0.f);
     for (int i = 0; i < mThetaRes * mPhiRes; ++i) {
-        pdfInt += mPdf[i];
+        mPdf[i] /= pdfInt;
     }
-    pdfInt *= M_PI / mThetaRes * 2.f * M_PI / mPhiRes;
-    fprintf(stderr, "PDF integrates to %f\n", pdfInt);
+
+    fprintf(stderr, "%s created.\n", mSignature.c_str());
 }
 
 void
@@ -569,6 +593,8 @@ TabulatedDistribution::initFromFile(const string &filePath)
 float
 TabulatedDistribution::D(const Vector &wh) const
 {
+    // Make sure mData is initialized
+    Assert(mData.getXResolution() > 0 && mData.getYResolution() > 0);
     const float theta = SphericalTheta(wh),
                 phi = SphericalPhi(wh);
     return mData.eval(theta, phi);
