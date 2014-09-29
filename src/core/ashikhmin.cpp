@@ -783,7 +783,7 @@ TabulatedDistribution::get(const string &filePath)
         distribution->initFromFile(filePath);
 
         // TODO: run unit tests
-        distribution->printUnitTestResults();
+        //distribution->printUnitTestResults();
 
         // TODO: test saveToFile
         distribution->saveToFile(distribution->signature() + ".duplicated.txt");
@@ -865,7 +865,7 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
                     costheta = cosf(theta),
                     sintheta = sinf(theta);
         // TODO: test
-        //fprintf(stderr, "theta = %f (%d/%d)\n", theta, x+1, thetaRes);
+        fprintf(stderr, "theta = %f (%d/%d)\n", theta, x+1, thetaRes);
         for (int y = 0; y < phiRes; ++y) {
             const float t = (y + 0.5f) / phiRes,
                         phi = 2.f * M_PI * t;
