@@ -7,7 +7,7 @@ Camera "perspective" "float fov" [28.8415]
 Film "image"  "integer xresolution" [683] "integer yresolution" [512]
     "string filename" "material-ashikhmin.exr"
 
-Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+Sampler "lowdiscrepancy" "integer pixelsamples" [128]
 
 #SurfaceIntegrator "directlighting"
 SurfaceIntegrator "path"
@@ -49,7 +49,7 @@ AttributeBegin
                        "bool tabulated" "true"
                        "integer tabulatedresolution" [64]
                        "bool useuniformsampling" "false"
-                       "string ndffilepath" "test.txt"
+                       "string ndffilepath" "test3.txt"
 
   # Note the following transform includes the 0.01 translation along +Z 
   # left-multiplied into the transform, since we can't do anything before

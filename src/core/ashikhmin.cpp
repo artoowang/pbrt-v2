@@ -63,6 +63,7 @@ const double sCubatureRelError = 1e-4;
 const double sCubatureAbsError = 1e-9;  // This is necessary for integral that leads to zero
 const float sSmallValue = 1e-6f;
 const bool sPrintGGrid = false;
+const size_t sMaxEval = 1000000;
 
 // ----------------------------------------------------------------------------
 
@@ -214,10 +215,7 @@ AshikhminDistribution::printUnitTestResults(void) const
     fprintf(stderr, "  Using wo = (%.2f, %.2f, %.2f)\n", wo.x, wo.y, wo.z);
     fprintf(stderr, "  Integrate Pdf(wo, wi) over wi (should be one, unless Pdf is too peaky and is zero around normal): %f\n",
             integratePdf(wo));
-
-    // Output PDF/D images
     writePdfImage(wo, 512, 512, signature() + ".pdf.exr");
-    writeDImage(512, 512, signature() + ".D.exr");
 }
 
 void
@@ -286,7 +284,7 @@ AshikhminDistribution::integrateD(void) const
 #endif
     hcubature(1, DIntegrand, (void*)this,
             2, xmin, xmax,
-            0, 0, sCubatureRelError,
+            sMaxEval, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
 
     Assert(ret == 0);
@@ -327,7 +325,7 @@ AshikhminDistribution::integratePdf(const Vector &wo) const
 #endif
     hcubature(1, PdfIntegrand, (void*)&data,
             2, xmin, xmax,
-            0, 0, sCubatureRelError,
+            sMaxEval, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
 
     Assert(ret == 0);
@@ -464,6 +462,8 @@ TabulatedDistribution::init(const vector<float> &dGrid)
     }
 
     // The actual PDF of wh in sphere domain
+    // TODO: test
+    //mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, dGrid);
     mData.init(0, M_PI, mThetaRes, 0, 2*M_PI, mPhiRes, scaledDGrid);
     intD = integrateD();
     fprintf(stderr, "Scaled D integrates to %f (should be close to one)\n", intD);
@@ -578,11 +578,23 @@ TabulatedDistribution::initFromFile(const string &filePath)
     vector<float> dGrid(mThetaRes * mPhiRes);
     for (int t = 0; t < mThetaRes; ++t) {
         for (int p = 0; p < mPhiRes; ++p) {
-            ifs >> dGrid[gridIndex(t, p)];
+            double d;
+            // Note: it's necessary to load the number using double;
+            //       otherwise, if the file contains number exceeding
+            //       float range, unexpected behavior might happen
+            //       (and it seems propagate to later read actions)
+            ifs >> d;
+            dGrid[gridIndex(t, p)] = static_cast<float>(d);
         }
     }
 
-    // TODO: normalize the NDF table?
+    // TODO: test
+    //for (int t = 0; t < mThetaRes; ++t) {
+    //    for (int p = 0; p < mPhiRes; ++p) {
+    //        fprintf(stderr, "%e ", dGrid[gridIndex(t, p)]);
+    //    }
+    //    fprintf(stderr, "\n");
+    //}
 
     // TODO: use absolute path?
     mSignature = buildSignature(filePath);
@@ -785,7 +797,8 @@ TabulatedDistribution::get(const string &filePath)
         // TODO: run unit tests
         //distribution->printUnitTestResults();
 
-        // TODO: test saveToFile
+        // TODO: save info to files
+        distribution->writeDImage(512, 512, distribution->signature() + ".D.exr");
         distribution->saveToFile(distribution->signature() + ".duplicated.txt");
 
         std::pair<TabulatedDistributionMap::iterator, bool> result =
@@ -865,7 +878,7 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
                     costheta = cosf(theta),
                     sintheta = sinf(theta);
         // TODO: test
-        fprintf(stderr, "theta = %f (%d/%d)\n", theta, x+1, thetaRes);
+        //fprintf(stderr, "theta = %f (%d/%d)\n", theta, x+1, thetaRes);
         for (int y = 0; y < phiRes; ++y) {
             const float t = (y + 0.5f) / phiRes,
                         phi = 2.f * M_PI * t;
@@ -880,6 +893,9 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
     //mGFactorGrid = new MIPMap<float>(thetaRes, phiRes, gGrid.data(), false, 8.f, TEXTURE_CLAMP);
 
     mGFactorGrid.init(0, M_PI, thetaRes, 0, 2*M_PI, phiRes, gGrid);
+
+    // TODO: test: output G grid to image
+    writeGImage(512, 512, distribution.signature() + ".G.exr");
 
     // TODO: implement in InterpolatedGrid?
     /*// Print g grid
@@ -906,13 +922,9 @@ AshikhminCache::initGGrid(int thetaRes, int phiRes, const AshikhminDistribution 
 float
 AshikhminCache::gFactor(const Vector &v) const
 {
-    //Assert(mGFactorGrid != NULL);
+    Assert(mGFactorGrid.getXResolution() > 0 && mGFactorGrid.getYResolution() > 0);
     const float theta = SphericalTheta(v),
-                //s = theta * INV_PI,
                 phi = SphericalPhi(v);
-                //t = phi * INV_TWOPI;
-    //return mGFactorGrid->Lookup(s, t);
-
     return mGFactorGrid.eval(theta, phi);
 }
 
@@ -920,6 +932,33 @@ float
 AshikhminCache::averageNH(void) const
 {
     return mAvgNH;
+}
+
+void
+AshikhminCache::writeGImage(int thetaRes, int phiRes, const string &filepath) const
+{
+    vector<float> data(thetaRes * phiRes, 0.f);
+
+    // Fill in the G values
+    for (int y = 0; y < thetaRes; ++y) {
+        const float theta = M_PI * (y + 0.5f) / thetaRes,
+                    costheta = cosf(theta),
+                    sintheta = sinf(theta);
+
+        for (int x = 0; x < phiRes; ++x) {
+            const float phi = 2.f * M_PI * (x + 0.5f) / phiRes;
+            const Vector &wh = SphericalDirection(sintheta, costheta, phi);
+            data[y*thetaRes + x] = gFactor(wh);
+        }
+    }
+
+    // Convert to 3 channels
+    vector<float> pixels(thetaRes * phiRes * 3, 0.f);
+    for (int i = 0; i < thetaRes * phiRes; ++i) {
+        pixels[i*3] = pixels[i*3+1] = pixels[i*3+2] = data[i];
+    }
+
+    WriteEXR(filepath.c_str(), pixels.data(), phiRes, thetaRes, false);
 }
 
 const AshikhminCache&
@@ -1071,7 +1110,7 @@ Ashikhmin::computeAverageNH(const AshikhminDistribution &distribution)
 #endif
     hcubature(1, averageNHIntegrand, (void*)&distribution,
             2, xmin, xmax,
-            0, 0, sCubatureRelError,
+            sMaxEval, 0, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
 
     Assert(ret == 0);
@@ -1119,18 +1158,16 @@ Ashikhmin::computeGFactor(const Vector &v, const AshikhminDistribution &distribu
     GFactorIntegrandData data;
     data.distribution = &distribution;
     data.v = v;
+    data.numEvals = 0;
 
     // First dimension is phi, second theta
     // Note we now using method 2 in gFactorIntegrand(), so we integrate over the whole sphere
     const double xmin[2] = {0, 0},
                  xmax[2] = {2.f*M_PI, M_PI};
     double val = 0.f, error = 0.f;
-#ifdef DEBUG
-    int ret =
-#endif
-    hcubature(1, gFactorIntegrand, (void*)&data,
+    int ret = hcubature(1, gFactorIntegrand, (void*)&data,
             2, xmin, xmax,
-            0, sCubatureAbsError, sCubatureRelError,
+            sMaxEval, sCubatureAbsError, sCubatureRelError,
             ERROR_INDIVIDUAL, &val, &error);
 
     Assert(ret == 0);
@@ -1140,6 +1177,12 @@ Ashikhmin::computeGFactor(const Vector &v, const AshikhminDistribution &distribu
     // TODO: test
     //fprintf(stderr, "hcubature result (%d): %.8f +- %.8f\n",
     //        ret, val, error);
+
+    // TODO: test
+    if (data.numEvals >= sMaxEval) {
+        fprintf(stderr, "hcubature reached sMaxEval (%zu > %zu), result (%d): %.8f +- %.8f\n",
+                data.numEvals, sMaxEval, ret, val, error);
+    }
 
     return val;
 }
@@ -1152,6 +1195,9 @@ Ashikhmin::gFactorIntegrand(unsigned /*ndim*/, const double *x, void *fdata,
     GFactorIntegrandData *data =
             reinterpret_cast<GFactorIntegrandData*>(fdata);
     const float phi = x[0], theta = x[1];
+
+    // Increase counter (for statistics)
+    ++data->numEvals;
 
     // Find H in the space defined by V
     const float costheta = cosf(theta),

@@ -192,6 +192,8 @@ public:
     float gFactor(const Vector &v) const;
     float averageNH(void) const;
 
+    void writeGImage(int thetaRes, int phiRes, const string &filepath) const;
+
     static const AshikhminCache& get(const AshikhminDistribution &distribution);
 
     // TODO: test
@@ -259,6 +261,7 @@ private:
     {
         const AshikhminDistribution *distribution;
         Vector v;
+        size_t numEvals;
     };
 };
 
