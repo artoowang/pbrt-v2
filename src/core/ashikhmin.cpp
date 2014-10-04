@@ -303,6 +303,9 @@ AshikhminDistribution::DIntegrand(unsigned /*ndim*/, const double *x, void *fdat
     const float costheta = cosf(theta),
                 sintheta = sinf(theta);
 
+    // TODO: test
+    //fprintf(stderr, "DIntegrand(): theta = %e\n", theta);
+
     Vector H = SphericalDirection(sintheta, costheta, phi);
     fval[0] = distribution->D(H) * sintheta;
 
@@ -578,14 +581,18 @@ TabulatedDistribution::initFromFile(const string &filePath)
     vector<float> dGrid(mThetaRes * mPhiRes);
     for (int t = 0; t < mThetaRes; ++t) {
         for (int p = 0; p < mPhiRes; ++p) {
-            double d;
-            // Note: it's necessary to load the number using double;
-            //       otherwise, if the file contains number exceeding
-            //       float range, unexpected behavior might happen
-            //       (and it seems propagate to later read actions)
-            ifs >> d;
-            dGrid[gridIndex(t, p)] = static_cast<float>(d);
+            // Note: we need to parse the input numbers as string first;
+            //       otherwise, if there is number outside of float range,
+            //       ifstream seems to get stuck
+            string str;
+            if (!(ifs >> str)) {
+                fprintf(stderr, "ifs read fail: %s\n", str.c_str());
+            }
+            float f = atof(str.c_str());
+            //fprintf(stderr, "%e ", f); // TODO
+            dGrid[gridIndex(t, p)] = f;
         }
+        //fprintf(stderr, "\n"); // TODO
     }
 
     // TODO: test
