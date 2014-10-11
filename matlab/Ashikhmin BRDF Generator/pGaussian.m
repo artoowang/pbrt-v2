@@ -9,13 +9,14 @@
 %   C = 1 / (2*pi*sqrt(2)*sigma*F(sigma/sqrt(2)))
 % where F is "Dawson integral" that involves Erf function. When sigma is
 % 0.1, this ~ 1/0.062623
+% pGaussian interates to one over hemisphere (for small enough sigma)
 function density = pGaussian(h_local, sigma, N)
     % Compute normalization constant
     C = 1 / (2*pi*sqrt(2)*sigma*mfun('dawson', sigma/sqrt(2)));
     
     % Implemented using
     % http://renderman.pixar.com/view/cook-torrance-shader
-    if (isempty(N))
+    if (~exist('N', 'var'))
         n_dot_h = h_local(3,:);
     else
         n_dot_h = sum(h_local .* repmat(N, [1 size(h_local, 2)]));
