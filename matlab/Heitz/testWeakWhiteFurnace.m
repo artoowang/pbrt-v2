@@ -1,0 +1,39 @@
+function vals = testWeakWhiteFurnace(name, params, thetaRes)
+    thetas = linspace(0, pi/2, thetaRes+1);
+    thetas = 0.5 * (thetas(1:end-1) + thetas(2:end));
+    vals = zeros(1, thetaRes);
+
+    if (strcmp(name, 'Blinn'))
+        exponent = params(1);
+        vals = runWeakWhiteFurnaceTest(thetas, ...
+            @(w) D_Blinn(w, exponent), ...
+            @G1, ...
+            sprintf('Blinn, %f', exponent));
+    elseif (strcmp(name, 'Beckmann'))
+        alpha = params(1);
+        vals = runWeakWhiteFurnaceTest(thetas, ...
+            @(w) D_Beckmann(w, alpha), ...
+            @G1, ...
+            sprintf('Beckmann, %f', alpha));
+    elseif (strcmp(name, 'Beckmann (approx)'))
+        alpha = params(1);
+        vals = runWeakWhiteFurnaceTest(thetas, ...
+            @(w) D_Beckmann(w, alpha), ...
+            @(wo, wn, D) G1_Beckmann(wo, wn, alpha), ...
+            sprintf('Beckmann (approx), %f', alpha));
+    end
+end
+
+function vals = runWeakWhiteFurnaceTest(thetas, D, G1, name)
+    thetaRes = length(thetas);
+    vals = zeros(1, thetaRes);
+    for t = 1:thetaRes
+        fprintf('theta(%d/%d): %f\n', t, thetaRes, thetas(t));
+        wo = sph2vector(thetas(t), 0);
+        vals(t) = weakWhiteFurnaceTest(wo, D, G1);
+    end
+    plot(thetas, vals), ...
+        xlabel('theta'), ...
+        title(sprintf('Weak white furnace test (%s)', name)), ...
+        ylim([0 1]);
+end
