@@ -89,6 +89,7 @@
 #include "materials/translucent.h"
 #include "materials/uber.h"
 #include "materials/ashikhmin.h"
+#include "materials/microfacet.h"
 #include "renderers/aggregatetest.h"
 #include "renderers/createprobes.h"
 #include "renderers/metropolis.h"
@@ -406,6 +407,8 @@ Reference<Material> MakeMaterial(const string &name,
         material = CreateShinyMetalMaterial(mtl2world, mp);
     else if (name == "ashikhmin")
         material = CreateAshikhminMaterial(mtl2world, mp);
+    else if (name == "microfacet")
+        material = CreateMicrofacetMaterial(mtl2world, mp);
     else
         Warning("Material \"%s\" unknown.", name.c_str());
     mp.ReportUnused();

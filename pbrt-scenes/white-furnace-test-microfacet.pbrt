@@ -1,0 +1,66 @@
+Scale -1 1 1
+
+LookAt 0 0 10  0 0 0  0 1 0
+Camera "orthographic" "float screenwindow" [ -7.2 7.2 -1.2 1.2 ]
+Film "image" "integer xresolution" [1200] "integer yresolution" [200]
+             "string filename" "white-furnace-test-microfacet.exr"
+
+#PixelFilter "box" "float xwidth" [1] "float ywidth" [1]
+
+Sampler "lowdiscrepancy" "integer pixelsamples" [128]
+
+SurfaceIntegrator "directlighting"
+#SurfaceIntegrator "path"
+
+WorldBegin
+
+AttributeBegin
+  LightSource 
+    "infinite" "integer nsamples" [1]
+               "rgb L" [.5 .5 .5]
+               #"string mapname" "textures/matpreview_latlong.exr"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [10]
+  Translate 6.0 0 0 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [1]
+  Translate 3.6 0 -100 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [.1]
+  Translate 1.2 0 -200 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [.01]
+  Translate -1.2 0 -300 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [.001]
+  Translate -3.6 0 -400 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "microfacet" "color Ks" [1 1 1]
+                        "float roughness" [.0001]
+  Translate -6.0 0 -500 
+  Shape "sphere"
+AttributeEnd
+
+WorldEnd
