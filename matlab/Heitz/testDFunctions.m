@@ -10,6 +10,16 @@ function testDFunctions(name, params)
             0, pi, 0, 2*pi);
         fprintf('Beckmann (alpha = %f) integrates to %f\n', alpha, val);
     end
+    
+    % GGX
+    if (strcmp(name, 'GGX'))
+        alpha = params(1);
+        ws = sph2vector(thetas, zeros(size(thetas)));
+        plot(thetas, D_GGX(ws, alpha)), xlabel('theta'), title(sprintf('GGX (alpha = %f)', alpha));
+        val = quad2d(@(theta, phi) integrand(theta, phi, @(w) D_GGX(w, alpha)), ...
+            0, pi, 0, 2*pi);
+        fprintf('GGX (alpha = %f) integrates to %f\n', alpha, val);
+    end
 
     % Blinn
     if (strcmp(name, 'Blinn'))
