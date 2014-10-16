@@ -1,0 +1,87 @@
+Scale -1 1 1
+
+LookAt 0 0 10  0 0 0  0 1 0
+Camera "orthographic" "float screenwindow" [ -7.2 7.2 -1.2 1.2 ]
+Film "image" "integer xresolution" [1200] "integer yresolution" [200]
+             "string filename" "white-furnace-test-ashikhmin.exr"
+
+#PixelFilter "box" "float xwidth" [1] "float ywidth" [1]
+
+Sampler "lowdiscrepancy" "integer pixelsamples" [128]
+
+SurfaceIntegrator "directlighting"
+#SurfaceIntegrator "path"
+
+WorldBegin
+
+AttributeBegin
+  LightSource 
+    "infinite" "integer nsamples" [1]
+               "rgb L" [.5 .5 .5]
+               #"string mapname" "textures/matpreview_latlong.exr"
+AttributeEnd
+
+AttributeBegin
+  Material "ashikhmin" "color Kd" [0 0 0]
+                       "color Ks" [1 1 1]
+                       "float roughness" [.001]
+                       "float index" [10000000]
+                       "integer gridresolution" [32]
+                       "bool tabulated" "true"
+                       "integer tabulatedresolution" [64]
+  Translate 6.0 0 0 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "ashikhmin" "color Kd" [0 0 0]
+                       "color Ks" [1 1 1]
+                       "float roughness" [.1]
+                       "float index" [10000000]
+                       "integer gridresolution" [32]
+                       "bool tabulated" "true"
+                       "integer tabulatedresolution" [64]
+  Translate 3.6 0 -100 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "uber" "color Kd" [0 0 0]
+                  "color Ks" [1 1 1]
+                  "color Kr" [0 0 0]
+                  "float roughness" [.1]
+                  "float index" [0.0000001]     # This is (1/1.5). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+
+  Translate 1.2 0 -200 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "matte" "color Kd" [1 1 1]
+  Translate -1.2 0 -300 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "uber" "color Kd" [0 0 0]
+                  "color Ks" [1 1 1]
+                  "color Kr" [0 0 0]
+                  "float roughness" [.001]
+                  "float index" [0.0000001]     # This is (1/1.5). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+
+  Translate -3.6 0 -400 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "uber" "color Kd" [0 0 0]
+                  "color Ks" [1 1 1]
+                  "color Kr" [0 0 0]
+                  "float roughness" [.0001]
+                  "float index" [0.0000001]     # This is (1/1.5). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+
+  Translate -6.0 0 -500 
+  Shape "sphere"
+AttributeEnd
+
+WorldEnd
