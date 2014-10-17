@@ -1,0 +1,76 @@
+Scale -1 1 1
+
+LookAt 3.69558 -3.46243 3.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 0.895346
+#LookAt 30.69558 -30.46243 30.25463   3.04072 -2.85176 2.80939   -0.317366 0.312466 0.895346
+#LookAt 10 0 0  0 0 0  0 0 1
+Camera "perspective" "float fov" [28.8415]
+Film "image"  "integer xresolution" [683] "integer yresolution" [512]
+     "string filename" "material-heitz.exr"
+
+Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+
+#SurfaceIntegrator "directlighting"
+SurfaceIntegrator "path"
+
+WorldBegin
+
+AttributeBegin
+  # The order applies here is reversed from that in Mitsuba .xml
+  # Not sure why
+  Transform [ -0.224951 -0.974370 0 0 -0.000001 0 1 0 -0.974370 0.224951 -0.000001 0 0 0 8.87 1 ]
+  Rotate -180 0 1 0
+
+  # The following transformation aligns PBRT env map with Mitsuba
+  # Note we need to apply Mitsuba's light transform in .xml BEFORE the 
+  # following transform
+  Scale -1 1 1
+  Rotate 90 0 1 0
+  Rotate -90 1 0 0
+
+  LightSource 
+    "infinite" "integer nsamples" [1]
+  	           "string mapname" "textures/matpreview_latlong.exr"
+               "rgb L" [1.5 1.5 1.5]
+               #"string mapname" "textures/white.exr"
+AttributeEnd
+
+AttributeBegin
+  #Material "uber" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+  #                "color Ks" [1 1 1]
+  #                "color Kr" [0 0 0]
+  #                "float roughness" [.01]
+  #                "float index" [0.66666666666]     # This is (1/1.5). Currently PBRTv2 uber mtl treat "index" as the ratio of incident IOR to transmitted IOR
+  
+  #Material "microfacet" "color Ks" [1 1 1]
+  #                      "float roughness" [.0001]
+
+  Material "heitz" "color Kd" [0.09411764705882 0.27058823529412 0.36078431372549]
+                   "color Ks" [1 1 1]
+                   "float roughness" [.01]
+                   "float index" [1.5]
+
+  # Note the following transform includes the 0.01 translation along +Z 
+  # left-multiplied into the transform, since we can't do anything before
+  # "Transform" because it overwrites the current result. This is simply
+  # done by adding m34 by 0.01
+  Transform [ 0.614046 -0.614047 0 0  0.614047 0.614046 0 0  0 0 0.868393 0 -1.78814e-07 2.08616e-07 1.03569 1 ]
+  Include "geometry/matpreview-base.pbrt"
+AttributeEnd
+
+AttributeBegin
+  Material "matte" "color Kd" [.18 .18 .18]
+  Translate 0 0 0.0252155
+  Include "geometry/matpreview-inner.pbrt"
+AttributeEnd
+
+AttributeBegin
+  Texture "checks" "spectrum" "checkerboard"
+                              "float uscale" [16] "float vscale" [16]
+                              "rgb tex1" [.4 .4 .4] "rgb tex2" [.2 .2 .2]
+  Material "matte" "texture Kd" "checks"
+  Transform [3.38818 4.06354 0 0  -4.06354 3.38818 0 0  0 0 5.29076 0  -1.74958 1.43683 -0.0120714 1]
+  Rotate -4.3 0 0 1
+  Include "geometry/matpreview-plane.pbrt"
+AttributeEnd
+
+WorldEnd

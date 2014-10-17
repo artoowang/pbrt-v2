@@ -90,6 +90,7 @@
 #include "materials/uber.h"
 #include "materials/ashikhmin.h"
 #include "materials/microfacet.h"
+#include "materials/heitz.h"
 #include "renderers/aggregatetest.h"
 #include "renderers/createprobes.h"
 #include "renderers/metropolis.h"
@@ -409,6 +410,8 @@ Reference<Material> MakeMaterial(const string &name,
         material = CreateAshikhminMaterial(mtl2world, mp);
     else if (name == "microfacet")
         material = CreateMicrofacetMaterial(mtl2world, mp);
+    else if (name == "heitz")
+        material = CreateHeitzMaterial(mtl2world, mp);
     else
         Warning("Material \"%s\" unknown.", name.c_str());
     mp.ReportUnused();
