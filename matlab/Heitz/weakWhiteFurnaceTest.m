@@ -15,7 +15,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     %}
         
     % Method 2: fixed grid
-    %
+    %{
     if (~exist('thetaRes', 'var'))
         thetaRes = 200;
     end
@@ -41,6 +41,30 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     result = sum(vals(:)) * pi / thetaRes * 2*pi / phiRes;
     %result = sum(vals(:)) * dphi * dtheta;
     %}
+    
+    % Method 3: Monte Carlo
+    if (~exist('thetaRes', 'var'))
+        error('Monte Carlo needs sample function\n');
+    end
+    Sample = thetaRes;
+    if (exist('phiRes', 'var'))
+        N = phiRes;
+    else
+        N = 1000;
+    end
+    [wis, pdfs] = Sample(wo, N);
+    wis = wis(:, pdfs > 0);
+    pdfs = pdfs(pdfs > 0);
+    N = length(pdfs);
+    if (N == 0)
+        error('Monte Carlo doesn''t find any valid sample\n');
+    end
+    whs = halfVector(wis, wo);
+    densities = D(whs);
+    G1_vals = G1(wo, whs, D);
+    wg_dot_wo = wo(3);
+    vals = densities .* G1_vals ./ (4*wg_dot_wo);
+    result = sum(vals ./ pdfs) / N;
 end
 
 % wo: 3x1 vector
