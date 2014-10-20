@@ -7,7 +7,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     end
 
     % Method 1: quad2d
-    %{
+    %
     [result, errbnd] = quad2d(@(theta, phi) integrand(theta, phi, wo, D, G1), ...
             ...%1, 2, 3, 3.5);
             0, pi, 0, 2*pi);
@@ -43,6 +43,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     %}
     
     % Method 3: Monte Carlo
+    %{
     if (~exist('thetaRes', 'var'))
         error('Monte Carlo needs sample function\n');
     end
@@ -65,24 +66,12 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     wg_dot_wo = wo(3);
     vals = densities .* G1_vals ./ (4*wg_dot_wo);
     result = sum(vals ./ pdfs) / N;
+    %}
 end
 
 % wo: 3x1 vector
 function val = integrand(theta, phi, wo, D, G1)
-    wg_dot_wo = wo(3);
-    if (wg_dot_wo < 0)
-        val = zeros(size(theta));
-        return;
-    end
-    
-    wi = sph2vector(theta, phi); % 3xN
-    wh = halfVector(wi, wo); % 3xN
-    densities = D(wh); % 1xN
-    G1_vals = G1(wo, wh, D); % 1xN
-    
-    % Reshape
-    densities = reshape(densities, size(theta));
-    G1_vals = reshape(G1_vals, size(theta));
-    
-    val = densities .* G1_vals ./ (4*wg_dot_wo) .* sin(theta);
+    wi = sph2vector(theta, phi);
+    val = weakWhiteFurnaceTestIntegrand(wi, wo, D, G1);
+    val = reshape(val, size(theta));
 end

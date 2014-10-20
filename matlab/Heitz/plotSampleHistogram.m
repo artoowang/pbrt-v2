@@ -1,20 +1,35 @@
 function histmat = plotSampleHistogram(wis, thetaRes, phiRes)
-    thetas = linspace(0, pi, thetaRes);
-    phis = linspace(0, 2*pi, phiRes);
     
+    N = size(wis, 2);
     [theta_is, phi_is] = vector2sph(wis);
-    histmat = hist2(theta_is, phi_is, thetas, phis);
+    histmat = hist2(phi_is, theta_is, [0 2*pi], [0 pi], phiRes, thetaRes);
     
     % Adjustment
-    factors = 1 ./ sin(thetas);
-    factors(thetas == 0) = 0;
-    histmat = histmat .* repmat(factors(:), [1 phiRes]);
+    thetas = linspace(0, pi, thetaRes+1);
+    thetas = (thetas(1:end-1) + thetas(2:end)) / 2;
+    phis = linspace(0, 2*pi, phiRes+1);
+    phis = (phis(1:end-1) + phis(2:end)) / 2;
+    dphi = (2*pi) / phiRes;
+    dtheta = pi / thetaRes;
+    dw = sin(thetas) * dphi * dtheta;
+    probMass = histmat / N;
+    probDensities = probMass ./ repmat(dw(:), [1 phiRes]);
+    histmat = probDensities;
     
-    % Normalize
-    %img = pdfs / sum(pdfs(:));
-    %img = reshape(img, size(tt));
-    %imagesc(img);
+    imagesc(histmat);
     
+    %{
+    % Pad additional row and column to histmat
+    % Note: I think these padded values are not used by surf, but they are
+    %       necessary to match the dimension of tt and pp
+    histmat(:, end+1) = histmat(:, end);
+    histmat(end+1, :) = histmat(end, :);
+    
+    % Compute xyz points for surf()
+    % Note these points represent the endpoints of the cell, not the center
+    % we use above to adjust the histogram
+    thetas = linspace(0, pi, thetaRes+1);
+    phis = linspace(0, 2*pi, phiRes+1);
     [pp, tt] = meshgrid(phis, thetas);
     ws = sph2vector(tt, pp);
     x = reshape(ws(1,:), size(tt));
@@ -23,4 +38,5 @@ function histmat = plotSampleHistogram(wis, thetaRes, phiRes)
     surf(x, y, z, histmat, 'EdgeColor', 'none'), ...
         axis square, ...
         xlabel('X'), ylabel('Y'), zlabel('Z');
+    %}
 end
