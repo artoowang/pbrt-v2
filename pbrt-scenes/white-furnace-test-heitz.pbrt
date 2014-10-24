@@ -1,0 +1,100 @@
+Scale -1 1 1
+
+LookAt 0 0 50  0 0 0  0 1 0
+Camera "orthographic" "float screenwindow" [ -7.2 7.2 -1.2 1.2 ]
+#Camera "perspective" "float fov" [2.74966956]
+Film "image" "integer xresolution" [1200] "integer yresolution" [200]
+             "string filename" "white-furnace-test-heitz.exr"
+
+#PixelFilter "box" "float xwidth" [1] "float ywidth" [1]
+
+Sampler "lowdiscrepancy" "integer pixelsamples" [4]
+
+SurfaceIntegrator "directlighting"
+#SurfaceIntegrator "path"
+
+WorldBegin
+
+AttributeBegin
+  LightSource 
+    "infinite" "integer nsamples" [1]
+               "rgb L" [.5 .5 .5]
+               #"string mapname" "textures/matpreview_latlong.exr"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [1]
+                   "bool useuniformsampling" "false"
+  Translate 6.0 0 0
+  ##Translate 6.0 0 0
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ] 
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [.64]
+                   "bool useuniformsampling" "false"
+  Translate 3.6 0 -100
+  ##Translate 3.6 0 0 
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [.36]
+                   "bool useuniformsampling" "false"
+  Translate 1.2 0 -200
+  ##Translate 1.2 0 0 
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [.16]
+                   "bool useuniformsampling" "false"
+  Translate -1.2 0 -300
+  ##Translate -1.2 0 0 
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [.04]
+                   "bool useuniformsampling" "false"
+  Translate -3.6 0 -400
+  ##Translate -3.6 0 0 
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
+  Shape "sphere"
+AttributeEnd
+
+AttributeBegin
+  Material "heitz" "color Ks" [1 1 1]
+                   "float roughness" [.01]
+                   "bool useuniformsampling" "false"
+  Translate -6.0 0 -500
+  ##Translate -6.0 0 0 
+  Rotate -0 1 0 0
+  #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
+  Shape "sphere"
+AttributeEnd
+
+#AttributeBegin
+#  #Material "matte"
+#  Material "heitz" "color Ks" [1 1 1]
+#                   "float roughness" [.01]
+#                   "bool useuniformsampling" "false"
+#  Translate -6.0 0 -500
+#  Shape "sphere"
+#AttributeEnd
+
+WorldEnd

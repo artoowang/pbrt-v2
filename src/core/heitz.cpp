@@ -67,14 +67,15 @@ GGXForHeitz::D(const Vector &wh) const
     }
 }
 
-// wo.z > 0 is guaranteed
+// wo.z >= 0 is guaranteed
 // Note the sampled wi ~ D(wh)*cos(thetah)/(4*dot(wo,wh))
 // and pdf = 0 when dot(wo, wh) < 0 (make sure Pdf() does the same thing)
 void
 GGXForHeitz::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
                      float *pdf) const
 {
-    Assert(CosTheta(wo) > 0.f);
+    // We allow cos(theta_o) == 0 because it doesn't break our computation
+    Assert(CosTheta(wo) >= 0.f);
 
     // From [Walter et al., 2007]
     float thetah = atanf(mAlpha * sqrt(u1) / sqrt(1.f-u1)),
@@ -103,7 +104,8 @@ GGXForHeitz::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
 float
 GGXForHeitz::Pdf(const Vector &wo, const Vector &wi) const
 {
-    Assert(CosTheta(wo) > 0.f);
+    // We allow cos(theta_o) == 0 because it doesn't break our computation
+    Assert(CosTheta(wo) >= 0.f);
 
     Vector wh = Normalize(wo + wi);
     float dotHO = Dot(wo, wh);
@@ -117,15 +119,17 @@ GGXForHeitz::Pdf(const Vector &wo, const Vector &wi) const
 float
 GGXForHeitz::G(const Vector &wo, const Vector &/*wi*/, const Vector &wh) const
 {
-    Assert(CosTheta(wo) > 0.f);
+    float costhetao = CosTheta(wo);
+    if (costhetao < sSmallValue) {
+        return 0.f;
+    }
 
     // TODO: currently, we only compute G1(wo, wh)
     float dotHO = Dot(wo, wh);
     if (dotHO < 0.f) {
         return 0.f;
     }
-    float costhetao = CosTheta(wo),
-          thetao = acosf(costhetao);
+    float thetao = acosf(costhetao);
     if (thetao < sSmallValue) {
         return 1.f;
     }
@@ -161,6 +165,13 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
         wi = -wi;
     }
 
+    float cosThetaO = CosTheta(wo),
+          absCosThetaI = AbsCosTheta(wi);
+    Assert(cosThetaO >= 0.f);
+    if (cosThetaO < sSmallValue || absCosThetaI < sSmallValue) {
+        return Spectrum(0.f);
+    }
+
     Vector wh = wi + wo;
     if (wh.x == 0. && wh.y == 0. && wh.z == 0.) {
         return Spectrum(0.f);
@@ -172,20 +183,17 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
     // Note wi is possible to be at lower hemisphere, so we need to use
     // AbsCosTheta()
     return R * mDistribution.D(wh) * mDistribution.G(wo, wi, wh) * F /
-               (4.f * CosTheta(wo) * AbsCosTheta(wi));
+               (4.f * cosThetaO * absCosThetaI);
 
     // TODO: test
-    //float Dval = mDistribution.D(wh),
-    //      Gval = mDistribution.G(wo, wi, wh),
-    //      cti = AbsCosTheta(wi);
-    //Spectrum val = R * Dval * Gval * F /
-    //        (4.f * CosTheta(wo) * cti);
-    //if (isinf(val.y())) {
-    //    fprintf(stderr, "%f\n", wh.Length());
-    //    wh = Normalize(wh);
-    //    fprintf(stderr, "Heitz::f() returns inf\n");
-    //}
-    //return val;
+    /*float Dval = mDistribution.D(wh),
+          Gval = mDistribution.G(wo, wi, wh);
+    Spectrum val = R * Dval * Gval * F /
+            (4.f * cosThetaO * absCosThetaI);
+    if (isinf(val.y()) || val.y() < -sSmallValue) {
+        fprintf(stderr, "invalid value\n");
+    }
+    return val;*/
 }
 
 Spectrum
