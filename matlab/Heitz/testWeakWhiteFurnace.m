@@ -26,6 +26,8 @@ function vals = testWeakWhiteFurnace(name, params, thetaRes)
         vals = runWeakWhiteFurnaceTest(thetas, ...
             @(w) D_GGX(w, alpha), ...
             @(wo, wn, D) G1_GGX(wo, wn, alpha), ...
+            ... %@(wo, N) Sample_UniformSphere(N), ...
+            @(wo, N) Sample_GGX(wo, N, alpha), ...
             sprintf('GGX, %f', alpha));
     elseif (strcmp(name, 'GGX (integrated G1)'))
         alpha = params(1);
@@ -36,13 +38,13 @@ function vals = testWeakWhiteFurnace(name, params, thetaRes)
     end
 end
 
-function vals = runWeakWhiteFurnaceTest(thetas, D, G1, name)
+function vals = runWeakWhiteFurnaceTest(thetas, D, G1, Sample, name)
     thetaRes = length(thetas);
     vals = zeros(1, thetaRes);
     for t = 1:thetaRes
         fprintf('theta(%d/%d): %f\n', t, thetaRes, thetas(t));
         wo = sph2vector(thetas(t), 0);
-        vals(t) = weakWhiteFurnaceTest(wo, D, G1);
+        vals(t) = weakWhiteFurnaceTest(wo, D, G1, Sample, 100000);
     end
     plot(thetas, vals), ...
         xlabel('theta'), ...
