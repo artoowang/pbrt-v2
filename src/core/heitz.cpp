@@ -52,10 +52,10 @@ float
 GGXForHeitz::D(const Vector &wh) const
 {
     float costhetah = CosTheta(wh);
-    if (costhetah < 0.f) {
+    if (costhetah < sSmallValue) {
         return 0.f;
     } else {
-        Assert(costhetah >= 0.f && costhetah <= 1.f);
+        Assert(costhetah > 0.f && costhetah <= 1.f);
         float thetah = acosf(costhetah),
               costhetah2 = costhetah * costhetah,
               costhetah4 = costhetah2 * costhetah2,
@@ -91,6 +91,10 @@ GGXForHeitz::Sample_f(const Vector &wo, Vector *wi, float u1, float u2,
 
     } else {
         *wi = -wo + 2.f * dotHO * wh;
+        // TODO: test
+        //if (wi->z < 0) {
+        //    fprintf(stderr, "wi.z == %f\n", wi->z);
+        //}
         // TODO: can be optimized
         *pdf = D(wh) * costhetah / (4.f * dotHO);
     }
@@ -135,7 +139,8 @@ GGXForHeitz::G(const Vector &wo, const Vector &/*wi*/, const Vector &wh) const
 Heitz::Heitz(const Spectrum &reflectance, Fresnel *f,
              const HeitzDistribution &d)
     : BxDF(BxDFType(BSDF_REFLECTION | BSDF_GLOSSY)),
-     R(reflectance), mDistribution(d), fresnel(f)
+      mUseUniformSampling(false),   // TODO: test
+      R(reflectance), mDistribution(d), fresnel(f)
 {
 }
 
@@ -164,10 +169,23 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
 
-    // Note wi is possible to be at lower hemisphere, so we need to use 
+    // Note wi is possible to be at lower hemisphere, so we need to use
     // AbsCosTheta()
     return R * mDistribution.D(wh) * mDistribution.G(wo, wi, wh) * F /
                (4.f * CosTheta(wo) * AbsCosTheta(wi));
+
+    // TODO: test
+    //float Dval = mDistribution.D(wh),
+    //      Gval = mDistribution.G(wo, wi, wh),
+    //      cti = AbsCosTheta(wi);
+    //Spectrum val = R * Dval * Gval * F /
+    //        (4.f * CosTheta(wo) * cti);
+    //if (isinf(val.y())) {
+    //    fprintf(stderr, "%f\n", wh.Length());
+    //    wh = Normalize(wh);
+    //    fprintf(stderr, "Heitz::f() returns inf\n");
+    //}
+    //return val;
 }
 
 Spectrum
@@ -175,10 +193,10 @@ Heitz::Sample_f(const Vector &wo, Vector *wi,
                               float u1, float u2, float *pdf) const 
 {
     // TODO: for test
-    /*if (mUseUniformSampling) {
+    if (mUseUniformSampling) {
         return BxDF::Sample_f(wo, wi, u1, u2, pdf);
 
-    } else {*/
+    } else {
         if (wo.z < 0.f) {
             // Reverse side
             mDistribution.Sample_f(-wo, wi, u1, u2, pdf);
@@ -192,22 +210,22 @@ Heitz::Sample_f(const Vector &wo, Vector *wi,
         } else {
             return Spectrum(0.f);
         }
-    //}
+    }
 }
 
 float
 Heitz::Pdf(const Vector &wo, const Vector &wi) const 
 {
     // TODO: for test
-    /*if (mUseUniformSampling) {
+    if (mUseUniformSampling) {
         return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
 
-    } else {*/
+    } else {
         if (wo.z < 0.f) {
             // Reverse side
             return mDistribution.Pdf(-wo, -wi);
         } else {
             return mDistribution.Pdf(wo, wi);
         }
-    //}
+    }
 }

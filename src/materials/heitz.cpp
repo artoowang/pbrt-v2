@@ -69,6 +69,9 @@ BSDF *HeitzMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
         const HeitzDistribution &distribution = *(BSDF_ALLOC(arena, GGXForHeitz)(rough));
         spec = BSDF_ALLOC(arena, Heitz)(ks, fresnel, distribution);
 
+        // TODO: test
+        spec->mUseUniformSampling = mUseUniformSampling;
+
         bsdf->Add(spec);
     }
     return bsdf;
@@ -85,6 +88,8 @@ HeitzMaterial *CreateHeitzMaterial(const Transform &xform,
     string ndfFilePath = mp.FindString("ndffilepath", "");
 
     HeitzMaterial *mtl = new HeitzMaterial(Kd, Ks, roughness, etat, bumpMap, ndfFilePath);
+
+    mtl->mUseUniformSampling = mp.FindBool("useuniformsampling", false);
 
     return mtl;
 }

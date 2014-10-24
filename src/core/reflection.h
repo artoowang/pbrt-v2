@@ -204,7 +204,13 @@ public:
     virtual ~BxDF() { }
     BxDF(BxDFType t) : type(t) { }
     bool MatchesFlags(BxDFType flags) const {
-        return (type & flags) == type;
+        // TODO: to test spherical BSDF, we need to ignore BSDF_TRANSMISSION and BSDF_REFLECTION
+        //       Note this depends on the BxDF to correctly implement f and Pdf to handle wi from
+        //       the other side
+        BxDFType typeFiltered = BxDFType((type & ~BSDF_TRANSMISSION) & ~BSDF_REFLECTION),
+                 flagsFiltered = BxDFType((flags & ~BSDF_TRANSMISSION) & ~BSDF_REFLECTION);
+        return (typeFiltered & flagsFiltered) == typeFiltered;
+        //return (type & flags) == type;
     }
     virtual Spectrum f(const Vector &wo, const Vector &wi) const = 0;
     virtual Spectrum Sample_f(const Vector &wo, Vector *wi,

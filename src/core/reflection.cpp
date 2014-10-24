@@ -566,7 +566,7 @@ Spectrum BSDF::Sample_f(const Vector &woW, Vector *wiW,
 
     // Compute value of BSDF for sampled direction
     if (!(bxdf->type & BSDF_SPECULAR)) {
-        f = 0.;
+        f = 0.;     // TODO: isn't this very inefficient?
         if (Dot(*wiW, ng) * Dot(woW, ng) > 0) // ignore BTDFs
             flags = BxDFType(flags & ~BSDF_TRANSMISSION);
         else // ignore BRDFs

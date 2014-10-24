@@ -88,6 +88,9 @@ public:
                       float u1, float u2, float *pdf) const;
     float Pdf(const Vector &wo, const Vector &wi) const;
 
+    // TODO: for test
+    bool mUseUniformSampling;
+
 private:
     Spectrum R;
     const HeitzDistribution &mDistribution;

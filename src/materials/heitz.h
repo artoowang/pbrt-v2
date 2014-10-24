@@ -54,6 +54,9 @@ public:
                   const DifferentialGeometry &dgShading,
                   MemoryArena &arena) const;
 
+    // TODO: test
+    bool mUseUniformSampling;
+
 private:
     Reference<Texture<Spectrum> > mKd, mKs;
     Reference<Texture<float> > mRoughness, mEtaT, mBumpMap;
