@@ -1,3 +1,18 @@
+# Command to replace plane with sphere:
+# :%s/^  #Shape "tri/  #Shape "tri/
+# :%s/^  Shape "sphere"/  Shape "sphere"/
+# Command to replace sphere with plane:
+# :%s/^  #Shape "tri/  #Shape "tri/
+# :%s/^  Shape "sphere"/  Shape "sphere"/
+# Command to place objects far apart on Z axis
+# :%s/^  Translate/  ##Translate/
+# :%s/^  ###Translate/  Translate/
+# Command to place objects on the same Z location
+# :%s/^  Translate/  ###Translate/
+# :%s/^  ##Translate/  Translate/
+# Change rotate angle
+# :%s/^  Rotate [-0-9]*/  Rotate -0/
+
 Scale -1 1 1
 
 LookAt 0 0 50  0 0 0  0 1 0
@@ -26,66 +41,66 @@ AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [1]
                    "bool useuniformsampling" "false"
+  ###Translate 6.0 0 0
   Translate 6.0 0 0
-  ##Translate 6.0 0 0
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ] 
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [.64]
                    "bool useuniformsampling" "false"
-  Translate 3.6 0 -100
-  ##Translate 3.6 0 0 
+  ###Translate 3.6 0 -100
+  Translate 3.6 0 0 
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [.36]
                    "bool useuniformsampling" "false"
-  Translate 1.2 0 -200
-  ##Translate 1.2 0 0 
+  ###Translate 1.2 0 -200
+  Translate 1.2 0 0 
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [.16]
                    "bool useuniformsampling" "false"
-  Translate -1.2 0 -300
-  ##Translate -1.2 0 0 
+  ###Translate -1.2 0 -300
+  Translate -1.2 0 0 
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [.04]
                    "bool useuniformsampling" "false"
-  Translate -3.6 0 -400
-  ##Translate -3.6 0 0 
+  ###Translate -3.6 0 -400
+  Translate -3.6 0 0 
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 AttributeBegin
   Material "heitz" "color Ks" [1 1 1]
                    "float roughness" [.01]
                    "bool useuniformsampling" "false"
-  Translate -6.0 0 -500
-  ##Translate -6.0 0 0 
+  ###Translate -6.0 0 -500
+  Translate -6.0 0 0 
   Rotate -0 1 0 0
   #Shape "trianglemesh" "integer indices" [ 0 2 1 0 3 2 ] "point P" [ 1 -1 0   -1 -1 0   -1 1 0   1 1 0 ]
-  Shape "sphere"
+  Shape "sphere" "float zmin" [-1]
 AttributeEnd
 
 #AttributeBegin

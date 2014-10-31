@@ -56,12 +56,12 @@ BSDF *HeitzMaterial::GetBSDF(const DifferentialGeometry &dgGeom,
     //    bsdf->Add(diff);
     //}
 
-    //float etat = mEtaT->Evaluate(dgs);
+    float etat = mEtaT->Evaluate(dgs);
     Spectrum ks = mKs->Evaluate(dgs).Clamp();
     if (!ks.IsBlack()) {
         // TODO: test
-        //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.f, etat); // Note this is different from uber, which I think implements this wrong
-        Fresnel *fresnel = BSDF_ALLOC(arena, FresnelNoOp)();
+        Fresnel *fresnel = BSDF_ALLOC(arena, FresnelDielectric)(1.f, etat); // Note this is different from uber, which I think implements this wrong
+        //Fresnel *fresnel = BSDF_ALLOC(arena, FresnelNoOp)();
         float rough = mRoughness->Evaluate(dgs);
 
         Heitz *spec = NULL;
