@@ -180,10 +180,19 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
     float i_dot_h = Dot(wi, wh);
     Spectrum F = fresnel->Evaluate(i_dot_h);
 
+    // Specular/glossy component
+    float spec = mDistribution.D(wh) * mDistribution.G(wo, wi, wh) /
+            (4.f * cosThetaO * absCosThetaI);
+
+    // Diffuse component
+    float diff = INV_PI;
+
+    // TODO: test
+    //F = Spectrum(0.f);
+
     // Note wi is possible to be at lower hemisphere, so we need to use
     // AbsCosTheta()
-    return R * mDistribution.D(wh) * mDistribution.G(wo, wi, wh) * F /
-               (4.f * cosThetaO * absCosThetaI);
+    return R * (F * spec + (Spectrum(1.f) - F) * diff);
 
     // TODO: test
     /*float Dval = mDistribution.D(wh),
@@ -205,18 +214,29 @@ Heitz::Sample_f(const Vector &wo, Vector *wi,
         return BxDF::Sample_f(wo, wi, u1, u2, pdf);
 
     } else {
-        if (wo.z < 0.f) {
-            // Reverse side
-            mDistribution.Sample_f(-wo, wi, u1, u2, pdf);
-            *wi = -(*wi);
-        } else {
-            mDistribution.Sample_f(wo, wi, u1, u2, pdf);
-        }
+        // TODO: what percentage between diffuse and specular? Currently use 50%
+        if (u1 < 0.5f) {
+            // Stretch u1 back to [0, 1)
+            u1 *= 2;
 
-        if (*pdf > 0.f) {
-            return f(wo, *wi);
+            if (wo.z < 0.f) {
+                // Reverse side
+                mDistribution.Sample_f(-wo, wi, u1, u2, pdf);
+                *wi = -(*wi);
+            } else {
+                mDistribution.Sample_f(wo, wi, u1, u2, pdf);
+            }
+
+            if (*pdf > 0.f) {
+                return f(wo, *wi);
+            } else {
+                return Spectrum(0.f);
+            }
+
         } else {
-            return Spectrum(0.f);
+            // Stretch u1 back to [0, 1)
+            u1 = 2 * (u1 - 0.5f);
+            return BxDF::Sample_f(wo, wi, u1, u2, pdf);
         }
     }
 }
@@ -229,11 +249,17 @@ Heitz::Pdf(const Vector &wo, const Vector &wi) const
         return SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
 
     } else {
+        // TODO: what percentage between diffuse and specular? Currently use 50%
+        float specPdf = 0.f;
         if (wo.z < 0.f) {
             // Reverse side
-            return mDistribution.Pdf(-wo, -wi);
+            specPdf = mDistribution.Pdf(-wo, -wi);
         } else {
-            return mDistribution.Pdf(wo, wi);
+            specPdf = mDistribution.Pdf(wo, wi);
         }
+
+        float diffPdf = SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
+
+        return (diffPdf + specPdf) * 0.5f;
     }
 }
