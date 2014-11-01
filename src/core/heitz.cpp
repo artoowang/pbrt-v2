@@ -215,29 +215,60 @@ Heitz::Sample_f(const Vector &wo, Vector *wi,
 
     } else {
         // TODO: what percentage between diffuse and specular? Currently use 50%
+        float pdfSpec = 0.f, pdfDiff = 0.f;
         if (u1 < 0.5f) {
             // Stretch u1 back to [0, 1)
             u1 *= 2;
 
             if (wo.z < 0.f) {
                 // Reverse side
-                mDistribution.Sample_f(-wo, wi, u1, u2, pdf);
+                mDistribution.Sample_f(-wo, wi, u1, u2, &pdfSpec);
                 *wi = -(*wi);
             } else {
-                mDistribution.Sample_f(wo, wi, u1, u2, pdf);
+                mDistribution.Sample_f(wo, wi, u1, u2, &pdfSpec);
             }
 
-            if (*pdf > 0.f) {
-                return f(wo, *wi);
+            // Note: wo and wi are not guaranteed to be on the +Z side, nor are
+            //      they to be on the same side
+
+            if (pdfSpec > 0.f) {
+                // The sample is valid. Compute the PDF from diffuse sampling
+                // method
+                pdfDiff = SameHemisphere(wo, *wi) ? AbsCosTheta(*wi) * INV_PI : 0.f;
+
             } else {
+                // The sample is invalid - note it still needs to be considered
+                // in Monte Carlo because invalid sample takes part of the PDF
+                *pdf = 0.f;
                 return Spectrum(0.f);
             }
 
         } else {
             // Stretch u1 back to [0, 1)
             u1 = 2 * (u1 - 0.5f);
-            return BxDF::Sample_f(wo, wi, u1, u2, pdf);
+
+            // Sampling wi at the same side as wo
+            *wi = CosineSampleHemisphere(u1, u2);
+            if (wo.z < 0.f) {
+                *wi = -(*wi);
+            }
+
+            // Compute PDF for diffuse
+            Assert(SameHemisphere(wo, *wi));
+            pdfDiff = AbsCosTheta(*wi) * INV_PI;
+
+            // Compute PDF for specular
+            if (wo.z < 0.f) {
+                // Reverse side
+                pdfSpec = mDistribution.Pdf(-wo, -(*wi));
+            } else {
+                pdfSpec = mDistribution.Pdf(wo, *wi);
+            }
         }
+
+        Assert(pdf);
+        *pdf = (pdfSpec + pdfDiff) * 0.5f;
+        return f(wo, *wi);
     }
 }
 
@@ -250,16 +281,15 @@ Heitz::Pdf(const Vector &wo, const Vector &wi) const
 
     } else {
         // TODO: what percentage between diffuse and specular? Currently use 50%
-        float specPdf = 0.f;
+        float pdfSpec = 0.f;
         if (wo.z < 0.f) {
             // Reverse side
-            specPdf = mDistribution.Pdf(-wo, -wi);
+            pdfSpec = mDistribution.Pdf(-wo, -wi);
         } else {
-            specPdf = mDistribution.Pdf(wo, wi);
+            pdfSpec = mDistribution.Pdf(wo, wi);
         }
 
-        float diffPdf = SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
-
-        return (diffPdf + specPdf) * 0.5f;
+        float pdfDiff = SameHemisphere(wo, wi) ? AbsCosTheta(wi) * INV_PI : 0.f;
+        return (pdfDiff + pdfSpec) * 0.5f;
     }
 }
