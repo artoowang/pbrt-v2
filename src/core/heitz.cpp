@@ -32,6 +32,7 @@
 
 #include "stdafx.h"
 #include "heitz.h"
+#include "montecarlo.h"
 
 #include <boost/format.hpp>
 
@@ -185,10 +186,10 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
             (4.f * cosThetaO * absCosThetaI);
 
     // Diffuse component
-    float diff = INV_PI;
+    float diff = wi.z > 0.f ? INV_PI : 0.f;
 
     // TODO: test
-    //F = Spectrum(0.f);
+    F = Spectrum(0.f);
 
     // Note wi is possible to be at lower hemisphere, so we need to use
     // AbsCosTheta()
