@@ -186,14 +186,16 @@ Heitz::f(const Vector &woInput, const Vector &wiInput) const
             (4.f * cosThetaO * absCosThetaI);
 
     // Diffuse component
+    Spectrum Fdiff = Spectrum(1.f) - fresnel->Evaluate(cosThetaO);
     float diff = wi.z > 0.f ? INV_PI : 0.f;
 
     // TODO: test
-    F = Spectrum(0.f);
+    //F = Spectrum(1.f);
 
     // Note wi is possible to be at lower hemisphere, so we need to use
     // AbsCosTheta()
-    return R * (F * spec + (Spectrum(1.f) - F) * diff);
+    //return R * (F * spec + (Spectrum(1.f) - F) * diff);
+    return R * (F * spec + Fdiff * diff);
 
     // TODO: test
     /*float Dval = mDistribution.D(wh),
