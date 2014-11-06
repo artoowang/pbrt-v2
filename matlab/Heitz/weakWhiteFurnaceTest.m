@@ -73,5 +73,5 @@ end
 function val = integrand(theta, phi, wo, D, G1)
     wi = sph2vector(theta, phi);
     val = weakWhiteFurnaceTestIntegrand(wi, wo, D, G1);
-    val = reshape(val, size(theta));
+    val = reshape(val, size(theta)) .* sin(theta);
 end

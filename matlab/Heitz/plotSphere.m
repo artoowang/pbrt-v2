@@ -1,5 +1,5 @@
 % sphFunc: takes 3xN unit vectors, returns 1xN vector
-function plotSphere(sphFunc, thetaRes, phiRes)
+function vals = plotSphere(sphFunc, thetaRes, phiRes)
     thetas = linspace(0, pi, thetaRes+1);
     thetas = 0.5 * (thetas(1:end-1) + thetas(2:end));
     phis = linspace(0, 2*pi, phiRes+1);
