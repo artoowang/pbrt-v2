@@ -7,7 +7,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     end
 
     % Method 1: quad2d
-    %
+    %{
     [result, errbnd] = quad2d(@(theta, phi) integrand(theta, phi, wo, D, G1), ...
             ...%1, 2, 3, 3.5);
             0, pi, 0, 2*pi);
@@ -43,7 +43,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     %}
     
     % Method 3: Monte Carlo
-    %{
+    %
     if (~exist('thetaRes', 'var'))
         error('Monte Carlo needs sample function\n');
     end
@@ -56,8 +56,7 @@ function result = weakWhiteFurnaceTest(wo, D, G1, thetaRes, phiRes)
     [wis, pdfs] = Sample(wo, N);
     wis = wis(:, pdfs > 0);
     pdfs = pdfs(pdfs > 0);
-    N = length(pdfs);
-    if (N == 0)
+    if (isempty(pdfs))
         error('Monte Carlo doesn''t find any valid sample\n');
     end
     whs = halfVector(wis, wo);

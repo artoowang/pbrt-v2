@@ -5,6 +5,6 @@ end
 
 function val = integrand(theta, phi, wo, D, G1)
     wi = sph2vector(theta, phi);
-    val = weakWhiteFurnaceTestIntegrandForDiffuseMF(wi, wo, D, G1);
+    val = weakWhiteFurnaceTestForDiffuseMFIntegrand(wi, wo, D, G1);
     val = reshape(val, size(theta)) .* sin(theta);
 end
